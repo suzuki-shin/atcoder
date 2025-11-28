@@ -1,0 +1,28 @@
+cradle:
+  stack:
+    - path: "././"
+      component: "abc081:lib"
+
+    - path: "./app/a/Main.hs"
+      component: "abc081:exe:a"
+
+    - path: "./app/a/Paths_abc081.hs"
+      component: "abc081:exe:a"
+
+    - path: "./app/Main.hs"
+      component: "abc081:exe:abc081"
+
+    - path: "./app/Paths_abc081.hs"
+      component: "abc081:exe:abc081"
+
+    - path: "./app/zzz/add-entry/Main.hs"
+      component: "abc081:exe:add-entry"
+
+    - path: "./app/zzz/add-entry/Paths_abc081.hs"
+      component: "abc081:exe:add-entry"
+
+    - path: "./app/b/Main.hs"
+      component: "abc081:exe:b"
+
+    - path: "./app/b/Paths_abc081.hs"
+      component: "abc081:exe:b"

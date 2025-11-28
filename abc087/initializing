@@ -1,0 +1,15 @@
+#!/bin/bash
+
+acc new abc087
+mv abc087/contest.acc.json ./
+
+jq -r '.tasks[].id' ./contest.acc.json | while read tid; do
+  mv abc087/${tid: -1} app/
+  ./setting ${tid: -1}
+done
+
+rmdir abc087
+cp contest.acc.json app/
+ln -s ./app ./abc087
+
+./resetting a

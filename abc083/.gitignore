@@ -1,0 +1,9 @@
+.stack-work/
+dist-new/
+abc083.cabal
+*.log
+.curname
+core
+*.hi
+*.o
+*~

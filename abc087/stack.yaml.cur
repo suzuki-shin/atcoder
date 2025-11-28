@@ -1,0 +1,7 @@
+snapshot: lts-23.28
+
+packages:
+- .
+
+extra-deps:
+- ac-library-hs-1.5.3.1

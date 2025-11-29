@@ -1,0 +1,31 @@
+chmod u+x building checking executing ghcing initializing resetting setting
+
+read -p "old? (~ABC429) (y/N): " old
+
+case $old in
+    [yY]*)
+        ghcup set ghc 9.4.8
+        ghcup set hls 2.10.0.0
+
+        cp stack.yaml.old stack.yaml
+        ;;
+    *)
+        ghcup set ghc 9.8.4
+        ghcup set hls 2.10.0.0
+
+        cp stack.yaml.cur stack.yaml
+        ;;
+esac
+
+read -p "Use default app/Main.hs instead of atcoder-cli template? (y/N): " cptmpl
+
+case $cptmpl in
+    [yY]*)
+        cp app/Main.hs $HOME/.config/atcoder-cli-nodejs/haskell/
+        ;;
+    *)
+        cp $HOME/.config/atcoder-cli-nodejs/haskell/Main.hs app/
+        ;;
+esac
+
+stack build

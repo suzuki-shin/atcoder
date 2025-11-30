@@ -122,17 +122,17 @@ library:
     source-dirs: []
 
 executables:
-  b:
+  d:
     main:               Main.hs
-    source-dirs:        app/b
+    source-dirs:        app/d
     ghc-options:
     - -rtsopts
     dependencies:
     - abc086
 
-  a:
+  c:
     main:               Main.hs
-    source-dirs:        app/a
+    source-dirs:        app/c
     ghc-options:
     - -rtsopts
     dependencies:

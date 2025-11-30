@@ -26,3 +26,15 @@ cradle:
 
     - path: "./app/b/Paths_abc086.hs"
       component: "abc086:exe:b"
+
+    - path: "./app/c/Main.hs"
+      component: "abc086:exe:c"
+
+    - path: "./app/c/Paths_abc086.hs"
+      component: "abc086:exe:c"
+
+    - path: "./app/d/Main.hs"
+      component: "abc086:exe:d"
+
+    - path: "./app/d/Paths_abc086.hs"
+      component: "abc086:exe:d"

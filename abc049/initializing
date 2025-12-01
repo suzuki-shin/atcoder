@@ -1,0 +1,31 @@
+#!/bin/bash
+set -e
+
+acc new abc049
+mv abc049/contest.acc.json ./
+
+jq -r '.tasks[].id' ./contest.acc.json | while read tid; do
+  problem_id=${tid: -1}
+
+  if [ -d "abc049/${problem_id}" ]; then
+    mv "abc049/${problem_id}" "app/"
+  else
+    echo "Warning: abc049/${problem_id} does not exist, skipping."
+  fi
+
+  ./setting "${problem_id}"
+done
+
+if [ -d "abc049" ]; then
+  if [ "$(ls -A abc049)" ]; then
+    echo "Warning: abc049 directory is not empty, creating symlink instead."
+    rm -rf abc049
+  else
+    rmdir abc049
+  fi
+fi
+
+cp contest.acc.json app/
+ln -s ./app ./abc049
+
+./resetting a

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source .curname
+
+./building
+oj t -c ./executing -d app/$CURRENT_STACK_EXE_ENTRY/tests

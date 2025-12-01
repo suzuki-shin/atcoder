@@ -1,0 +1,3 @@
+:set -XCPP
+:set -XGHC2021 -XLambdaCase -XMultiWayIf -XNPlusKPatterns -XOverloadedStrings -XLexicalNegation
+:set -XDataKinds -XPolyKinds -XNoStarIsType -XTypeFamilyDependencies -XUndecidableInstances

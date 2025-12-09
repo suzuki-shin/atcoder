@@ -51,6 +51,7 @@ type Solver = Dom -> Codom
 >>> solve (3,6)
 7
 -}
+{-# INLINE solve #-}
 solve :: Solver
 solve (n,k)= length $ f n k
 
@@ -68,11 +69,13 @@ f n k = [(r,b,w)|
     w <= n
     ]
 
+{-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \ case
     [n, k]:_ -> (n, k)
     _   -> invalid $ "toDom: " ++ show @Int __LINE__
 
+{-# INLINE encode #-}
 encode :: Codom -> [[O]]
 encode = \ case
     r -> [[r]]

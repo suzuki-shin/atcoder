@@ -16,11 +16,14 @@ import Control.Arrow
 import Control.Applicative
 import Control.Monad
 import Data.Array
+import Data.Array.IArray qualified as IArray
+import Data.Array.Unboxed (UArray)
 import Data.Bits
 import Data.Bool
 import Data.Char
 import Data.Function
 import Data.List
+-- import Data.Tuple.Extra (both)
 import Text.Printf
 
 import Data.IntMap qualified as IM
@@ -34,7 +37,7 @@ import Data.Vector qualified as V
 import Debug.Trace qualified as Debug
 
 debug :: Bool
-debug = () /= ()
+debug = () == ()
 
 type I = Int
 type O = String
@@ -54,6 +57,9 @@ canMove :: Point -> Point -> Bool
 canMove (t0, x0, y0) (t1, x1, y1) =
     let dt = t1 - t0
         dist = abs (x1 - x0) + abs (y1 - y0)
+        -- !_dt = Debug.traceShow dt ()
+        -- !_dist = Debug.traceShow dist ()
+        -- !_in = Debug.traceShow ((t0, x0, y0), (t1,x1,y1)) ()
     in dist <= dt && even (dt - dist)
 
 allCanMoves :: [Point] -> Bool
@@ -205,6 +211,65 @@ trace | debug     = Debug.trace
 
 tracing :: Show a => a -> a
 tracing = trace . show <*> id
+
+-- https://zenn.dev/toyboot4e/books/seriously-haskell/viewer/2-1-stderr のものを一部改変
+#ifndef ATCODER
+-- ローカル環境
+dbg :: (Show a) => a -> ()
+dbg = (`Debug.traceShow` ())
+
+dbgS :: String -> ()
+dbgS = (`Debug.trace` ())
+
+dbgId :: (Show a) => a -> a
+dbgId x = Debug.traceShow x x
+
+note :: (Show a) => String -> a -> ()
+note s x = trace (s ++ ": " ++ show x) ()
+
+dbgGrid :: (IArray.IArray a e, Show e) => a (Int, Int) e -> ()
+dbgGrid !grid = Data.List.foldl' step () rows
+  where
+    -- 幅を (x1 - x0 + 1) で計算
+    -- bounds grid :: ((Int,Int),(Int,Int))
+    ((x0, _), (x1, _)) = IArray.bounds grid -- 下限/上限を直接分解
+    w = x1 - x0 + 1 -- 列数
+    -- elems grid は行優先 (通常はインデックス昇順) なので幅 w で分割
+    rows = chunk w (IArray.elems grid)
+
+    -- 行を整形して trace (副作用を Unit に畳み込む)
+    step () xs = trace (unwords (map (align . show) xs)) ()
+
+    -- 右寄せ簡易フォーマット (幅 5 固定)
+    align s =
+      let l = length s
+          d = 5
+       in replicate (d - l) ' ' ++ s
+
+-- | リストを幅 n ずつ分割
+chunk :: Int -> [e] -> [[e]]
+chunk n = Data.List.unfoldr f
+  where
+    f [] = Nothing
+    f xs = Just (splitAt n xs)
+
+#else
+-- AtCoder 環境
+dbg :: (Show a) => a -> ()
+dbg = const ()
+
+dbgS :: String -> ()
+dbgS = const ()
+
+dbgId :: (Show a) => a -> a
+dbgId = id
+
+note :: (Show a) => String -> a -> ()
+note _ _ = ()
+
+dbgGrid :: (IArray a e, Show e) => a (Int, Int) e -> ()
+dbgGrid = const ()
+#endif
 
 {- error -}
 impossible :: String -> a

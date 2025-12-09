@@ -52,8 +52,10 @@ solve (n, y) =
 -- a,b,cを降順で返す
 combi :: Int -> [(Int, Int, Int)]
 combi n = [(a, b, c)|
-    a <- [n,n-1..0],
-    b <- [n-a,n-a-1..0],
+    -- a <- [n,n-1..0],
+    -- b <- [n-a,n-a-1..0],
+    a <- [0..n],
+    b <- [0..n-a],
     let c = n - a - b,
     c >= 0]
 

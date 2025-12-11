@@ -96,16 +96,16 @@ encode :: Codom -> [[O]]
 encode = map (:[])
 
 main :: IO ()
--- main = B.interact (detokenize . encode . solve . decode . entokenize)
-main = do
-  [n, q] <- readInts
-  as <- readInts
-  lrs <- readIntMat q
-  mapM_ print $ solve (n, q, as, lrs)
+main = B.interact (detokenize . encode . solve . decode . entokenize)
+-- main = do
+--   [n, q] <- readInts
+--   as <- readInts
+--   lrs <- readIntMat q
+--   mapM_ print $ solve (n, q, as, lrs)
 
 -- readInt' = fst . fromJust . B.readInt <$> B.getLine
-readInts = map (fst . fromJust . B.readInt) . B.words <$> B.getLine
-readIntMat n = map (map (fst . fromJust . B.readInt) . B.words) <$> replicateM n B.getLine
+-- readInts = map (fst . fromJust . B.readInt) . B.words <$> B.getLine
+-- readIntMat n = map (map (fst . fromJust . B.readInt) . B.words) <$> replicateM n B.getLine
 
 {- Common Decode Patterns (Reference) -}
 {-

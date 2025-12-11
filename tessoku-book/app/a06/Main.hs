@@ -62,15 +62,16 @@ type Solver = Dom -> Codom
 [15,24]
 -}
 solve :: Solver
-solve (n,q,as,lrs) =
---   map (\[l,r] -> f n as (l-1,r-1)) lrs
+solve (n,_,as,lrs) =
+  let csum = csum1D n as
+  in map (\[l,r] -> csum +! (l-1,r-1)) lrs
   -- trace (show (n, q, as, lrs)) def
 -- solve as lrs =
-  let n = length as
-      sumAs :: UArray Int Int
-      sumAs = listArray (0, n) $ scanl' (+) 0 as
-      ret = map (\[l, r] -> sumAs ! r - sumAs ! (l - 1)) lrs
-   in ret
+  -- let n = length as
+  --     sumAs :: UArray Int Int
+  --     sumAs = listArray (0, n) $ scanl' (+) 0 as
+  --     ret = map (\[l, r] -> sumAs ! r - sumAs ! (l - 1)) lrs
+  --  in ret
 
 {-
 >>> f 4 [1..10] (1,3)
@@ -82,8 +83,11 @@ solve (n,q,as,lrs) =
 {-# INLINE f #-}
 f :: Int -> [Int] -> (Int, Int) -> Int
 f n as (l,r) =
-  let csum = csum1D n as :: UArray Int Int
-  in csum +! (l,r)
+  -- let csum = csum1D n as :: UArray Int Int
+  -- in csum +! (l,r)
+  let ary = listArray (0, n) . scanl' (+) 0 $ as :: UArray Int Int
+  in ary ! succ r - ary ! l
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

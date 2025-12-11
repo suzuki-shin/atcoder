@@ -43,7 +43,7 @@ import Debug.Trace qualified as Debug
 import Text.Printf
 
 debug :: Bool
-debug = () == ()
+debug = () /= ()
 
 type I = Int
 
@@ -66,18 +66,17 @@ solve (n,q,as,lrs) =
   -- trace (show (n, q, as, lrs)) def
 
 {-
->>> f 4 0 [1..10] (1,3)
+>>> f 4 [1..10] (1,3)
 9
 
->>> f 4 0 [] (1,3)
+>>> f 4 [] (1,3)
 0
 -}
 {-# INLINE f #-}
 f :: Int -> [Int] -> (Int, Int) -> Int
 f n as (l,r) =
   let csum = csum1D n as :: UArray Int Int
-  in trace (show csum)
-  $ csum +! (l,r)
+  in csum +! (l,r)
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -90,7 +89,16 @@ encode :: Codom -> [[O]]
 encode = map (:[])
 
 main :: IO ()
-main = B.interact (detokenize . encode . solve . decode . entokenize)
+-- main = B.interact (detokenize . encode . solve . decode . entokenize)
+main = do
+  [n, q] <- readInts
+  as <- readInts
+  lrs <- readIntMat q
+  mapM_ print $ solve (n, q, as, lrs)
+
+-- readInt' = fst . fromJust . B.readInt <$> B.getLine
+readInts = map (fst . fromJust . B.readInt) . B.words <$> B.getLine
+readIntMat n = map (map (fst . fromJust . B.readInt) . B.words) <$> replicateM n B.getLine
 
 {- Common Decode Patterns (Reference) -}
 {-
@@ -282,20 +290,18 @@ vLength = VFB.length . VG.stream
 yn :: Bool -> String
 yn = bool "No" "Yes"
 
-{-| 1 次元の累積和配列を作成する。
->>> csum1D 4 [1..10] :: UArray Int Int
-array (0,4) [(0,0),(1,1),(2,3),(3,6),(4,10)]
--}
-csum1D :: (IArray a e, Num e) => Int -> [e] -> a Int e
+-- | 1 次元の累積和配列を作成する。
+-- >>> csum1D 4 [1..10] :: UArray Int Int
+-- array (0,4) [(0,0),(1,1),(2,3),(3,6),(4,10)]
+csum1D :: (IArray UArray e, Num e) => Int -> [e] -> UArray Int e
 csum1D n = listArray (0, n) . scanl' (+) 0
 {-# INLINE csum1D #-}
 
-{-| 1 次元の累積和配列を元に区間和を求める。
->>> let csum = csum1D 4 [1..10] :: UArray Int Int
->>> csum +! (1, 2)
-5
--}
-(+!) :: (IArray a e, Num e) => a Int e -> (Int, Int) -> e
+-- | 1 次元の累積和配列を元に区間和を求める。
+-- >>> let csum = csum1D 4 [1..10] :: UArray Int Int
+-- >>> csum +! (1, 2)
+-- 5
+(+!) :: (IArray UArray e, Num e) => UArray Int e -> (Int, Int) -> e
 (+!) ary (!l, !r) = ary ! succ r - ary ! l
 {-# INLINE (+!) #-}
 

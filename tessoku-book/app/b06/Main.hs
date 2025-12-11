@@ -56,7 +56,7 @@ type Solver = Dom -> Codom
 solve :: Solver
 solve (n, as, q, lrs) =
     let csum = csum1D n as
-    in map ((\(wins ,l, r) -> judge wins l r) . (\[l, r] -> (csum +! (l - 1, r - 1), l ,r))) lrs
+    in [judge (csum +! (l-1, r-1)) l r| [l,r] <- lrs]
 
 {-
 >>> judge 3 2 5
@@ -69,17 +69,11 @@ solve (n, as, q, lrs) =
 judge :: Int -> Int -> Int -> String
 judge wins l r =
   let tryCount = r - l + 1
-      (d, m) = tryCount `divMod` 2
-   in ( if m == 0
-          then
-            ( if
-                | wins > d -> "win"
-                | wins == d -> "draw"
-                | otherwise -> "lose"
-            )
-          else (if wins - 1 >= d then "win" else "lose")
-      )
-
+      loses = tryCount - wins
+  in case compare wins loses of
+    GT -> "win"
+    EQ -> "draw"
+    LT -> "lose"
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

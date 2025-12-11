@@ -41,6 +41,7 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
+import Data.Array.Base (UArray(UArray))
 
 debug :: Bool
 debug = () /= ()
@@ -62,8 +63,14 @@ type Solver = Dom -> Codom
 -}
 solve :: Solver
 solve (n,q,as,lrs) =
-  map (\[l,r] -> f n as (l-1,r-1)) lrs
+--   map (\[l,r] -> f n as (l-1,r-1)) lrs
   -- trace (show (n, q, as, lrs)) def
+-- solve as lrs =
+  let n = length as
+      sumAs :: UArray Int Int
+      sumAs = listArray (0, n) $ scanl' (+) 0 as
+      ret = map (\[l, r] -> sumAs ! r - sumAs ! (l - 1)) lrs
+   in ret
 
 {-
 >>> f 4 [1..10] (1,3)

@@ -48,25 +48,34 @@ debug = False
 type I = Int
 type O = Int
 
-type Dom = (Int, [Int])
-type Codom = Int
+type Dom = (Int, Int, [[Int]])
+type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x =
-  trace (show x) def
+solve (d, _, lrs) = map (attendees lrs) [1..d]
+  -- trace (show x) def
+
+-- i日目の出席者数
+-- >>> attendees [[2,3],[3,6],[5,7],[3,7],[1,5]] 1
+-- 1
+-- >>> attendees [[2,3],[3,6],[5,7],[3,7],[1,5]] 3
+-- 4
+{-# INLINE attendees #-}
+attendees :: [[Int]] -> Int -> Int
+attendees lrs i = sum [1|[l,r] <- lrs, l <= i, i <= r]
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [d] : [n] : lrs -> (d, n, lrs)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
+encode = map (:[])
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

@@ -256,9 +256,9 @@ csum1 n = listArray (0, n) . scanl' (+) 0
 csum2 :: (IArray UArray e, Num e) => (Int, Int) -> [[e]] -> UArray (Int, Int) e
 csum2 (h, w) rows = listArray ((0, 0), (h, w)) flatList
   where
-    rowSums = map (scanl (+) 0) rows
+    rowSums = map (scanl' (+) 0) rows
     zeroRow = replicate (w + 1) 0
-    colSums = scanl (zipWith (+)) zeroRow rowSums
+    colSums = scanl' (zipWith (+)) zeroRow rowSums
     flatList = concat colSums
 {-# INLINE csum2 #-}
 

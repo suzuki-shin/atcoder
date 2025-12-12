@@ -254,7 +254,7 @@ csum1D n = listArray (0, n) . scanl' (+) 0
 -- >>> imosA 8 lrs
 -- [1,2,4,3,4,3,2,0]
 {-# INLINE imosA #-}
-imosA :: Int -> [(Int, Int)] -> [Int] -- lrsをタプルにしないほうが早かったりする？
+imosA :: Int -> [(Int, Int)] -> [Int]
 imosA d lrs = elems result
   where
     diffArray :: UArray Int Int

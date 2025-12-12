@@ -43,7 +43,7 @@ import Debug.Trace qualified as Debug
 import Text.Printf
 
 debug :: Bool
-debug = True
+debug = False
 
 type I = Int
 type O = Int

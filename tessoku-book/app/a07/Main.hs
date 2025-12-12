@@ -46,26 +46,19 @@ debug :: Bool
 debug = False
 
 type I = Int
+
 type O = Int
 
 type Dom = (Int, Int, [[Int]])
+
 type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (d, _, lrs) = map (attendees lrs) [1..d]
+solve (d, _, lrs) = imos d [(l,r)|[l,r]<-lrs]
   -- trace (show x) def
-
--- i日目の出席者数
--- >>> attendees [[2,3],[3,6],[5,7],[3,7],[1,5]] 1
--- 1
--- >>> attendees [[2,3],[3,6],[5,7],[3,7],[1,5]] 3
--- 4
-{-# INLINE attendees #-}
-attendees :: [[Int]] -> Int -> Int
-attendees lrs i = sum [1|[l,r] <- lrs, l <= i, i <= r]
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -75,7 +68,7 @@ decode = \case
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode = map (:[])
+encode = map (: [])
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -192,11 +185,17 @@ class Default a where
   def :: a
 
 instance Default Int where def = 0
+
 instance Default Double where def = 0.0
+
 instance Default Bool where def = False
+
 instance Default [a] where def = []
+
 instance Default () where def = ()
+
 instance (Default a, Default b) => Default (a, b) where def = (def, def)
+
 instance (Default a, Default b, Default c) => Default (a, b, c) where def = (def, def, def)
 
 -- 偶数番目の要素を抽出
@@ -233,6 +232,8 @@ vLength = VFB.length . VG.stream
 yn :: Bool -> String
 yn = bool "No" "Yes"
 
+{- 累積和 -}
+
 -- | 1 次元の累積和配列を作成する。
 -- >>> csum1D 4 [1..10] :: UArray Int Int
 -- array (0,4) [(0,0),(1,1),(2,3),(3,6),(4,10)]
@@ -247,5 +248,21 @@ csum1D n = listArray (0, n) . scanl' (+) 0
 (+!) :: (IArray UArray e, Num e) => UArray Int e -> (Int, Int) -> e
 (+!) ary (!l, !r) = ary ! succ r - ary ! l
 {-# INLINE (+!) #-}
+
+-- | いもす法（Array版）
+-- >>> let lrs = [(2,3),(3,6),(5,7),(3,7),(1,5)] -- [(li, ri)] 参加者iがli日目からri日目まで参加する
+-- >>> imos 8 lrs
+-- [1,2,4,3,4,3,2,0]
+{-# INLINE imos #-}
+imos :: Int -> [(Int, Int)] -> [Int]
+imos d lrs = elems result
+  where
+    diffArray :: UArray Int Int
+    diffArray =
+      accumArray (+) 0 (0, d + 1) $
+      concatMap (\(l, r) -> [(l, 1), (r + 1, -1)]) lrs
+    -- 累積和
+    result :: UArray Int Int
+    result = listArray (1, d) $ drop 2 $ scanl (+) 0 (elems diffArray)
 
 {- End Bonsai -}

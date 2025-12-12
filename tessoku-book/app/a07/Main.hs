@@ -57,7 +57,7 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (d, _, lrs) = imos d [(l,r)|[l,r]<-lrs]
+solve (d, _, lrs) = imosA d [(l,r)|[l,r]<-lrs]
   -- trace (show x) def
 
 {-# INLINE decode #-}
@@ -251,11 +251,11 @@ csum1D n = listArray (0, n) . scanl' (+) 0
 
 -- | いもす法（Array版）
 -- >>> let lrs = [(2,3),(3,6),(5,7),(3,7),(1,5)] -- [(li, ri)] 参加者iがli日目からri日目まで参加する
--- >>> imos 8 lrs
+-- >>> imosA 8 lrs
 -- [1,2,4,3,4,3,2,0]
-{-# INLINE imos #-}
-imos :: Int -> [(Int, Int)] -> [Int]
-imos d lrs = elems result
+{-# INLINE imosA #-}
+imosA :: Int -> [(Int, Int)] -> [Int] -- lrsをタプルにしないほうが早かったりする？
+imosA d lrs = elems result
   where
     diffArray :: UArray Int Int
     diffArray =
@@ -264,5 +264,6 @@ imos d lrs = elems result
     -- 累積和
     result :: UArray Int Int
     result = listArray (1, d) $ drop 2 $ scanl (+) 0 (elems diffArray)
+
 
 {- End Bonsai -}

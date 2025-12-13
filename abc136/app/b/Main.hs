@@ -57,7 +57,7 @@ type Solver = Dom -> Codom
 -}
 solve :: Solver
 solve n =
-    VU.length $ VU.filter (odd . length . show) $ VU.enumFromN (1::Int) n
+    vLength $ VU.filter (odd . length . show) $ VU.enumFromN (1::Int) n
 --   trace (show x) def
 
 {-# INLINE decode #-}

@@ -64,7 +64,7 @@ type Solver = Dom -> Codom
 solve :: Solver
 solve (n,_,as,lrs) =
   let csum = csum1D n as
-  in map (\[l,r] -> csum +! (l-1,r-1)) lrs
+  in map (\[l,r] -> csum +! (l,r)) lrs
   -- trace (show (n, q, as, lrs)) def
 -- solve as lrs =
   -- let n = length as
@@ -308,12 +308,12 @@ csum1D :: (IArray UArray e, Num e) => Int -> [e] -> UArray Int e
 csum1D n = listArray (0, n) . scanl' (+) 0
 {-# INLINE csum1D #-}
 
--- | 1 次元の累積和配列を元に区間和を求める。
+-- | 1 次元の累積和配列を元に区間和を求める。(1-based。問題の(l,r)をそのまま渡せば良い)
 -- >>> let csum = csum1D 4 [1..10] :: UArray Int Int
--- >>> csum +! (1, 2)
+-- >>> csum +! (2, 3)
 -- 5
 (+!) :: (IArray UArray e, Num e) => UArray Int e -> (Int, Int) -> e
-(+!) ary (!l, !r) = ary ! succ r - ary ! l
+(+!) ary (!l, !r) = ary ! r - ary ! pred l
 {-# INLINE (+!) #-}
 
 {- End Bonsai -}

@@ -1,0 +1,9 @@
+.stack-work/
+dist-new/
+nikkei2019-final.cabal
+*.log
+.curname
+core
+*.hi
+*.o
+*~

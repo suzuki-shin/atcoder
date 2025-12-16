@@ -52,13 +52,17 @@ type Codom = [Int]
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
+-- >>> solve (4, [4,1,3,3])
+-- index out of bounds (-1,5)
 solve :: Solver
 solve (n, as) =
     let
-      csum = csum1 $ VU.fromListN n as
-      -- k個の連続する埋蔵量総和のリスト
-      bs k = [csum +! (i,k+i-1)| i <- [1..(length as + 1 - k)]]
-    in map (maximum . bs) [1..n]
+      csum = VU.scanl' (+) 0 $ VU.fromListN n as
+      calcMax k = VU.maximum $ VU.generate (n+1-k) (\i -> csum +! (i+1, i+k))
+    in map calcMax [1..n]
+    --   -- k個の連続する埋蔵量総和のリスト
+    --   bs k = [csum +! (i,k+i-1)| i <- [1..(length as + 1 - k)]]
+    -- in map (maximum . bs) [1..n]
 --   trace (show x) def
 
 {-# INLINE decode #-}

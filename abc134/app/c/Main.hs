@@ -1,70 +1,84 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GHC2021 #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LexicalNegation #-}
-{-# LANGUAGE LambdaCase, MultiWayIf #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NPlusKPatterns #-}
-{-# LANGUAGE DataKinds, PolyKinds, NoStarIsType, TypeFamilyDependencies, UndecidableInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoStarIsType #-}
+
 module Main where
 
-import Data.ByteString.Char8 qualified as B
-import Data.Maybe
-import Data.Ord
-
-import Control.Arrow
 import Control.Applicative
+import Control.Arrow
 import Control.Monad
-import Data.Array.IArray
 import Data.Array (Array)
+import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
 import Data.Bits
 import Data.Bool
+import Data.ByteString.Char8 qualified as B
 import Data.Char
 import Data.Function
-import Data.List
-import Text.Printf
-
 import Data.IntMap qualified as IM
 import Data.IntSet qualified as IS
 import Data.Ix
+import Data.List
 import Data.Map qualified as M
+import Data.Maybe
+import Data.Ord
+import Data.Sequence qualified as Q
 import Data.Set qualified as S
 import Data.Tree qualified as T
-import Data.Sequence qualified as Q
 import Data.Vector qualified as V
-import Data.Vector.Unboxed qualified as VU
 import Data.Vector.Fusion.Bundle qualified as VFB
 import Data.Vector.Generic qualified as VG
-
+import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
+import Text.Printf
 
 debug :: Bool
 debug = False
 
 type I = Int
+
 type O = Int
 
-type Dom   = (Int, [Int])
-type Codom = Int
+type Dom = (Int, [Int])
+
+type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x =
-  trace (show x) def
+solve (n, as) =
+  let v = VU.fromList as
+      ls = leftMax v
+      rs = rightMax v
+   in VU.toList $ VU.imap (\i _ ->
+              let l = if i == 0 then 1 else ls VU.! (i - 1)
+                  r = if i == n - 1 then 1 else rs VU.! (i + 1)
+               in max l r
+          ) v
+
+--   trace (show as) def
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
-decode = \ case
-    [n]:as:_ -> (n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+decode = \case
+  [n] : as -> (n, map head as)
+  _ -> invalid $ "toDom: " ++ show @Int 62
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
--- encode = map (:[])
+-- encode r = [[r]]
+encode = map (: [])
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -82,7 +96,7 @@ Pattern: Grid (H×W)
       hw:grid ->
           let [h, w] = map digitToInt hw
           in (h, w, grid)
-      _ -> invalid $ "decode: " ++ show @Int __LINE__
+      _ -> invalid $ "decode: " ++ show @Int 85
 -}
 {- Encode Pattern -}
 {-
@@ -96,43 +110,43 @@ encode = map (:[])
 -}
 
 class AsToken a where
-    readB :: B.ByteString -> a
-    readBs :: B.ByteString -> [a]
-    readBs = map readB . B.words
-    entokenize :: B.ByteString -> [[a]]
-    entokenize = map readBs . B.lines
+  readB :: B.ByteString -> a
+  readBs :: B.ByteString -> [a]
+  readBs = map readB . B.words
+  entokenize :: B.ByteString -> [[a]]
+  entokenize = map readBs . B.lines
 
-    showB :: a -> B.ByteString
-    showBs :: [a] -> B.ByteString
-    showBs = B.unwords . map showB
-    detokenize :: [[a]] -> B.ByteString
-    detokenize = B.unlines . map showBs
+  showB :: a -> B.ByteString
+  showBs :: [a] -> B.ByteString
+  showBs = B.unwords . map showB
+  detokenize :: [[a]] -> B.ByteString
+  detokenize = B.unlines . map showBs
 
 instance AsToken B.ByteString where
-    readB = id
-    showB = id
+  readB = id
+  showB = id
 
 instance AsToken Int where
-    readB = readInt
-    showB = showInt
+  readB = readInt
+  showB = showInt
 
 instance AsToken Integer where
-    readB = readInteger
-    showB = showInteger
+  readB = readInteger
+  showB = showInteger
 
 instance AsToken String where
-    readB = readStr
-    showB = showStr
+  readB = readStr
+  showB = showStr
 
 instance AsToken Double where
-    readB = readDbl
-    showB = showDbl
+  readB = readDbl
+  showB = showDbl
 
 instance AsToken Char where
-    readB = B.head
-    showB = B.singleton
-    readBs = B.unpack
-    showBs = B.pack
+  readB = B.head
+  showB = B.singleton
+  readBs = B.unpack
+  showBs = B.pack
 
 readInt :: B.ByteString -> Int
 readInt = fst . fromJust . B.readInt
@@ -160,10 +174,11 @@ showDbl = B.pack . show
 
 {- debug -}
 trace :: String -> a -> a
-trace | debug     = Debug.trace
-      | otherwise = const id
+trace
+  | debug = Debug.trace
+  | otherwise = const id
 
-tracing :: Show a => a -> a
+tracing :: (Show a) => a -> a
 tracing = trace . show <*> id
 
 {- error -}
@@ -178,17 +193,30 @@ invalid msg = error $ msg ++ ", invalid input"
 {- 古いAtcoder環境だとdata-defaultがないため -}
 class Default a where
   def :: a
+
 instance Default Int where def = 0
+
 instance Default Double where def = 0.0
+
 instance Default Bool where def = False
+
 instance Default [a] where def = []
+
 instance Default () where def = ()
+
 instance (Default a, Default b) => Default (a, b) where def = (def, def)
+
 instance (Default a, Default b, Default c) => Default (a, b, c) where def = (def, def, def)
+
+{-# INLINE initMay #-}
+initMay :: [a] -> Maybe [a]
+initMay [] = Nothing
+initMay xs = Just (init xs)
 
 -- 偶数番目の要素を抽出
 evenPositions :: [a] -> [a]
 evenPositions = positionsBy even
+
 -- 奇数番目の要素を抽出
 oddPositions :: [a] -> [a]
 oddPositions = positionsBy odd
@@ -203,23 +231,38 @@ tuple3 :: (a, a, a) -> [a]
 tuple3 (x, y, z) = [x, y, z]
 
 class ToVector s a where
-    toVector :: VU.Unbox a => Int -> s -> VU.Vector a
+  toVector :: (VU.Unbox a) => Int -> s -> VU.Vector a
 
 instance ToVector [a] a where
-    toVector n = VU.unfoldrN n uncons
+  toVector n = VU.unfoldrN n uncons
 
 instance ToVector B.ByteString Char where
-    toVector n bs = VU.generate (min n (B.length bs)) (B.index bs)
+  toVector n bs = VU.generate (min n (B.length bs)) (B.index bs)
 
 {-# INLINE vLength #-}
 vLength :: (VG.Vector v e) => v e -> Int
 vLength = VFB.length . VG.stream
+
+{-# INLINE leftMax #-}
+-- 数列 A1,A2,...,An （1<=i<=n, 2<=n） の中の A1..Ai の最大値のリスト（vector）を返す O(N)
+-- >>> leftMax $ VU.fromList [3,1,4,1,5,9,2,(6::Int)]
+-- [3,3,4,4,5,9,9,9]
+leftMax :: (VU.Unbox a, Ord a) => VU.Vector a -> VU.Vector a
+leftMax = VU.scanl1' max
+
+{-# INLINE rightMax #-}
+-- 数列 A1,A2,...,An （1<=i<=n） の中の Ai+1..An の最大値のリスト（vector）を返す O(N)
+-- >>> rightMax $ VU.fromList [(3::Int), 1,4,1,5,9,2,6]
+-- [9,9,9,9,9,9,6,6]
+rightMax :: (VU.Unbox a, Ord a) => VU.Vector a -> VU.Vector a
+rightMax = VU.scanr1' max
 
 {-# INLINE yn #-}
 yn :: Bool -> String
 yn = bool "No" "Yes"
 
 {- 累積和 -}
+
 -- | 1次元の累積和（Vector版）を作成する
 -- >>> csum1 $ VU.generate 4 (+1)
 -- [0,1,3,6,10]
@@ -245,7 +288,7 @@ imosA d lrs = elems result
     diffArray :: UArray Int Int
     diffArray =
       accumArray (+) 0 (0, d + 1) $
-      concatMap (\(l, r) -> [(l, 1), (r + 1, -1)]) lrs
+        concatMap (\(l, r) -> [(l, 1), (r + 1, -1)]) lrs
     -- 累積和
     result :: UArray Int Int
     result = listArray (1, d) $ drop 2 $ scanl (+) 0 (elems diffArray)

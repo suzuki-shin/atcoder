@@ -1,0 +1,9 @@
+.stack-work/
+dist-new/
+tenka1-2019beginner.cabal
+*.log
+.curname
+core
+*.hi
+*.o
+*~

@@ -42,29 +42,50 @@ import Debug.Trace qualified as Debug
 debug :: Bool
 debug = False
 
-type I = Int
+type I = B.ByteString
 type O = Int
 
-type Dom   = (Int, [Int])
-type Codom = Int
+type Dom   = (Int, Int, B.ByteString, [(Int, Int)])
+type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x =
-  trace (show x) def
+-- solve x = trace (show x) def
+solve (n, q, s, lrs) =
+    let csum = VU.scanl' (+) 0 $ isAC s
+    in
+        -- trace (show (s, lrs)) $
+        -- trace (show (isAC s)) $
+        -- trace (show csum) $
+        [csum VG.! (r-1) - csum VG.! (l-1)|(l,r) <- lrs]
+
+
+-- ACの開始位置に1を立てる
+-- >>> isAC "ACACTACG"
+-- [1,0,1,0,0,1,0]
+-- >>> isAC "A"
+-- []
+-- >>> isAC "TAGGCA"
+-- [0,0,0,0,0]
+isAC :: B.ByteString -> VU.Vector Int
+isAC s = VU.generate (B.length s - 1) $ \i ->
+    if B.index s i == 'A' && B.index s (i+1) == 'C' then 1 else 0
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \ case
-    [n]:as:_ -> (n, as)
+    [n',q']:[s]:lrs -> (n, q, s, [(readB l, readB r) | [l,r] <- lrs])
+        where
+            n = readB n'
+            q = readB q'
     _   -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
--- encode = map (:[])
+-- encode r = [[r]]
+encode = map (:[])
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

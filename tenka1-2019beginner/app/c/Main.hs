@@ -40,7 +40,7 @@ import Data.Vector.Generic qualified as VG
 import Debug.Trace qualified as Debug
 
 debug :: Bool
-debug = False
+debug = True
 
 type I = Char
 type O = Int
@@ -55,7 +55,9 @@ solve :: Solver
 solve (n, as) =
     let leftB = VU.scanl' (\acc s -> if s == '#' then acc + 1 else acc) 0 $ VU.fromList as
         rightW = VU.scanr' (\s acc -> if s == '.' then acc + 1 else acc) 0 $ VU.fromList as
-    in minimum [leftB VU.! (i-1) + rightW VU.! i| i <- [1..n]]
+    in trace (show (as, leftB, rightW)) $
+       trace (show [(i, leftB VU.! (i - 1), rightW VU.! i) | i <- [1 .. n]]) $
+       minimum [leftB VU.! (i - 1) + rightW VU.! i | i <- [1 .. n]]
 --   trace (show as) def
 
 {-# INLINE decode #-}

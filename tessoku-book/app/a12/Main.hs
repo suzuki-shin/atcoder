@@ -62,8 +62,9 @@ solve :: Solver
 solve (n,k,as) =
   let (l,r) = (1,10^9)
       -- t秒後にk枚以上印刷されているか？
+      asV = VU.fromList as
       check :: Int -> Bool
-      check t = sum (map (t `div`) as) >= k
+      check t = VU.sum (VU.map (t `div`) asV) >= k
   in AB.minLeft l r check
 
 {-# INLINE decode #-}

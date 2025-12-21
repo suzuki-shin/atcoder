@@ -58,7 +58,7 @@ solve :: Solver
 solve (n,x,as) =
   let v = VU.fromList as
       bSearch :: Int -> Int -> Int
-      bSearch l r
+      bSearch !l !r
         | l - r == 1 = r
         | otherwise =
           let mid = (l+r) `div` 2

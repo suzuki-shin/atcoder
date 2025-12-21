@@ -48,20 +48,33 @@ debug = False
 type I = Int
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, Int, [Int])
 type Codom = Int
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x =
-  trace (show x) def
+solve (n,x,as) =
+  let v = VU.fromList as
+      bSearch :: Int -> Int -> Int
+      bSearch l r
+        | l - r == 1 = r
+        | otherwise =
+          let mid = (l+r) `div` 2
+              val = v VU.! mid
+          in case compare val x of
+             EQ -> mid + 1
+             LT -> bSearch (mid + 1) r
+             GT -> bSearch l (mid - 1)
+  in bSearch 0 (n-1)
+
+  -- trace (show x) def
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n,x] : as : _ -> (n, x, as)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}

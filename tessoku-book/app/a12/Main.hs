@@ -41,6 +41,7 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
+import qualified AtCoder.Extra.Bisect as AB
 
 debug :: Bool
 debug = False
@@ -49,7 +50,7 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, Int, [Int])
 
 type Codom = Int
 
@@ -57,13 +58,19 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+-- solve x = trace (show x) def
+solve (n,k,as) =
+  let (l,r) = (1,10^9)
+      -- t秒後にk枚以上印刷されているか？
+      check :: Int -> Bool
+      check t = sum (map (t `div`) as) >= k
+  in AB.minLeft l r check
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  [n, k] : as : _ -> (n, k, as)
+  _ -> invalid $ "toDom: " ++ show @Int 78
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
@@ -87,7 +94,7 @@ decode = \case
     hw:grid ->
         let [h, w] = map digitToInt hw
         in (h, w, grid)
-    _ -> invalid $ "decode: " ++ show @Int __LINE__
+    _ -> invalid $ "decode: " ++ show @Int 102
 
 -- Pattern: Int & String
 -- Input: 5
@@ -97,7 +104,7 @@ type Dom (Int, String)
 decode :: [[I]] -> Dom
 decode = \ case
     n:as:_ -> (read n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+    _   -> invalid $ "toDom: " ++ show @Int 112
 -}
 {- Encode Pattern -}
 {-
@@ -303,3 +310,5 @@ csum2 (h, w) rows = listArray ((0, 0), (h, w)) flatList
 {-# INLINE (+!!) #-}
 
 {- End Bonsai -}
+
+

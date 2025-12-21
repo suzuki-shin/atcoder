@@ -14,6 +14,7 @@
 
 module Main where
 
+import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
@@ -57,18 +58,7 @@ type Solver = Dom -> Codom
 solve :: Solver
 solve (n,x,as) =
   let v = VU.fromList as
-      bSearch :: Int -> Int -> Int
-      bSearch !l !r
-        | l - r == 1 = r
-        | otherwise =
-          let mid = (l+r) `div` 2
-              val = v VU.! mid
-          in case compare val x of
-             EQ -> mid + 1
-             LT -> bSearch (mid + 1) r
-             GT -> bSearch l (mid - 1)
-  in bSearch 0 (n-1)
-
+  in succ $ AB.lowerBound v x
   -- trace (show x) def
 
 {-# INLINE decode #-}

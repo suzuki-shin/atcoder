@@ -55,15 +55,8 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 -- solve x = trace (show x) def
-solve n = length $ filter check [1..n]
-
-
---十進表記 (先頭に0 を付けない) は偶数桁であり、その前半と後半は文字列として等しいか？
-{-# INLINE check #-}
-check :: Int -> Bool
-check x = (even . length . show $ x) &&
-    let (ls,rs) = splitAt ((length . show) x `div` 2) $ show x
-    in ls == rs
+solve n =
+    length $ filter (<= n) $ map (\y -> read @Int (show y ++ show y)) [1..(ceiling $ sqrt $ fromIntegral n)]
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

@@ -55,8 +55,50 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 -- solve x = trace (show x) def
+{-
+求めたいのは「$N$ 以下の Doubled 数の**個数**」ですが、Doubled 数は $y=1, 2, 3, \dots$ の順に作ると $11, 22, 33, \dots$ と隙間なく増えていくため、**「$N$ 以下になる最大の $y$」がそのまま「個数」になります。**
+
+## 2. 具体例：$N = 1210$ の場合
+
+1.  **$N$ の上位半分 $x$ を取り出す**
+    *   $N = 1210$ なので、上位2桁は $x = 12$ です。
+
+2.  **$x$ を使って Doubled 数を作ってみる**
+    *   $x = 12$ から作れる Doubled 数は **$1212$** です。
+
+3.  **大小比較**
+    *   作った $1212$ と、元の $N = 1210$ を比べます。
+    *   $1212 > 1210$ なので、$1212$ は $N$ を**超えてしまっています**。
+    *   つまり、$y=12$ は条件を満たしません。
+
+4.  **じゃあ、その1つ下の $y$ は？**
+    *   $y=12$ がダメだったので、1つ小さい **$y = 11$** を試します。
+    *   $11$ から作れる Doubled 数は **$1111$** です。
+    *   $1111 \le 1210$ なので、これは条件を満たします！
+
+5.  **個数は？**
+    *   $y=11$ が条件を満たす最大の値なので、条件を満たす Doubled 数は $y=1$ から $y=11$ までの **11個** です。
+    *   これは $x - 1$ ($12 - 1 = 11$) と一致します。
+
+## 3. まとめ
+*   上位半分 $x$ をそのまま使って作った Doubled 数が $N$ 以下なら、その $x$ までの全て ($x$ 個) が答えです。
+*   もし $N$ を超えてしまったら、その $x$ はカウントできないので、1つ減らした $x-1$ 個が答えになります
+-}
 solve n =
-    length $ filter (<= n) $ map (\y -> read @Int (show y ++ show y)) [1..(ceiling $ sqrt $ fromIntegral n)]
+    -- length $ filter (<= n) $ map (\y -> read @Int (show y ++ show y)) [1..(ceiling $ sqrt (fromIntegral n :: Double))]
+    let s = show n
+        len = length s
+    in if odd len
+        then 10 ^ (len `div` 2) - 1
+        else
+            let halfLen = len `div` 2
+                (firstHalfStr, _) = splitAt halfLen s
+                firstHalf = read @Int firstHalfStr
+                doubled = read @Int (firstHalfStr ++ firstHalfStr)
+            in if doubled <= n
+                then firstHalf
+                else firstHalf - 1
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

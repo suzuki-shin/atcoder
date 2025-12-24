@@ -60,33 +60,12 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 -- solve x = trace (show x) def
-{- 公式解説より
-- ∣Ai − Bj∣ の値が今までに調べた差分のいずれよりも小さければ暫定的な答えを変更する。
-- その後、AiとBjを比較する。
-- Ai >BjならばBjをBj+1に変えて次の操作を行う。
-- Ai ≤Bj であるならばj<j′であるようなj′について∣Ai −Bj′∣を調べる必要はない。
-  さらにAi+1についてもj′ <j であるようなj′について∣Ai+1 −Bj′∣ の値を調べる必要はないため、Ai+1​ とBj について次の操作を行う。
-- i>N またはj>M となったならば操作を終了する。
--}
+-- cjpさんの回答見て
 solve (n, m, as, bs) =
-    f 0 0 (maxBound :: Int)
-    where
-        av = VU.fromList $ sort as
-        bv = VU.fromList $ sort bs
-        f :: Int -> Int -> Int -> Int
-        f i j minValue
-            | i > n - 1 || j > m - 1 = minValue
-            | otherwise =
-                let (a, b) = (av VG.! i, bv VG.! j)
-                    diff = abs(a - b)
-                    newMin = min minValue diff
-                in 
-                    -- Debug.trace (printf "i=%d j=%d a=%d b=%d diff=%d min=%d" i j a b diff newMin) $
-                    if diff == 0 then 0
-                    else if a > b
-                        then f i (j+1) newMin
-                        else f (i+1) j newMin
-
+    let bv = IS.fromList bs
+    in minimum [abs (a - b)|
+        a <- as,
+        Just b <- [IS.lookupGE a bv, IS.lookupLE a bv]]
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

@@ -63,7 +63,7 @@ solve (_,k,as,bs,cs,ds) =
   let ps = [a + b | a <- as, b <- bs, a + b < k]
       qs = [c + d | c <- cs, d <- ds, c + d < k]
       qv = VU.modify (VAI.sortBy compare) $ VU.fromList qs
-      lenQs = length qs
+      lenQs = vLength qv
       -- qsの中にp + qi == kとなるqiがあるか？(k-p以上の値を持つ最小のindexがあり、かつそれがk-pと一致するか？)
       check p =
         let idx = AB.minLeft 0 lenQs (\i -> p + qv VG.! i >= k)

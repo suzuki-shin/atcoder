@@ -59,7 +59,7 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 solve (_,k,as,bs,cs,ds) =
-  let ps = sort [a + b | a <- as, b <- bs, a + b < k]
+  let ps = [a + b | a <- as, b <- bs, a + b < k]
       qs = sort [c + d | c <- cs, d <- ds, c + d < k]
       qv = VU.fromList qs
       lenQs = length qs

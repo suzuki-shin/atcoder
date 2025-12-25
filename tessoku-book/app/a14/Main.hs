@@ -14,14 +14,12 @@
 
 module Main where
 
-import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
 import Data.Array (Array)
 import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
-import Data.Bifunctor (bimap)
 import Data.Bits
 import Data.Bool
 import Data.ByteString.Char8 qualified as B
@@ -41,6 +39,7 @@ import Data.Vector qualified as V
 import Data.Vector.Fusion.Bundle qualified as VFB
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
+import AtCoder.Extra.Bisect qualified as AB
 import Debug.Trace qualified as Debug
 import Text.Printf
 
@@ -49,27 +48,37 @@ debug = False
 
 type I = Int
 
-type O = Int
+type O = Char
 
-type Dom = (Int, [Int])
+type Dom = (Int, Int, [Int], [Int], [Int], [Int])
 
-type Codom = Int
+type Codom = String
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (_,k,as,bs,cs,ds) =
+  let ps = sort [a + b | a <- as, b <- bs, a + b < k]
+      qs = sort [c + d | c <- cs, d <- ds, c + d < k]
+      qv = VU.fromList qs
+      lenQs = length qs
+      -- qsの中にp + qi == kとなるqiがあるか？(k-p以上の値を持つ最小のindexがあり、かつそれがk-pと一致するか？)
+      check p =
+        let idx = AB.minLeft 0 lenQs (\i -> p + qv VG.! i >= k)
+        in idx < lenQs && qv VG.! idx == k - p
+  in yn $ any check ps
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n, k] : as : bs : cs : ds : _ -> (n, k, as, bs, cs, ds)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
+encode r = [r]
 
 -- encode = map (:[])
 
@@ -303,27 +312,5 @@ csum2 (h, w) rows = listArray ((0, 0), (h, w)) flatList
 (+!!) ary ((r1, c1), (r2, c2)) =
   ary ! (r2 + 1, c2 + 1) - ary ! (r1, c2 + 1) - ary ! (r2 + 1, c1) + ary ! (r1, c1)
 {-# INLINE (+!!) #-}
-
-{- しゃくとり法 -}
-{-# INLINE shakutori #-}
--- p: 条件を満たすかどうかを判定する関数 (l -> r -> Bool)
--- lls: 左端 L が指す要素以降のリスト
--- rrs: 右端 R が指す要素以降のリスト
--- len: 現在の条件を満たす区間 [L, R) の要素数 (Rを含まない)
-shakutori :: (Int -> Int -> Bool) -> [Int] -> [Int] -> Int -> [Int]
--- 右端 R がリストの終端に達した場合
--- 以降のすべての L について、残りの len がそのまま解になる
--- L を進めるごとに len を減らしていく
-shakutori p (_ : ls) [] len = len : shakutori p ls [] (len - 1)
-shakutori p lls@(l : ls) rrs@(r : rs) len
-  -- 条件を満たすなら、右端 R を右へ進める
-  -- 区間の長さ len は +1 される
-  | p l r = shakutori p lls rs (len + 1)
-  -- 条件を満たさなくなった場合、現在の L に対するペアの数は len 個 (A[L]...A[R-1])
-  -- len を結果リストに追加し、左端 L を右へ進める
-  -- L が進むと区間の長さ len は -1 される
-  | otherwise = len : shakutori p ls rrs (len - 1)
--- 左端 L が終端に達したら終了
-shakutori _ _ _ _ = []
 
 {- End Bonsai -}

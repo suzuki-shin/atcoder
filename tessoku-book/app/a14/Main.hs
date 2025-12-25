@@ -36,6 +36,7 @@ import Data.Sequence qualified as Q
 import Data.Set qualified as S
 import Data.Tree qualified as T
 import Data.Vector qualified as V
+import Data.Vector.Algorithms.Intro qualified as VAI
 import Data.Vector.Fusion.Bundle qualified as VFB
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
@@ -60,8 +61,8 @@ type Solver = Dom -> Codom
 solve :: Solver
 solve (_,k,as,bs,cs,ds) =
   let ps = [a + b | a <- as, b <- bs, a + b < k]
-      qs = sort [c + d | c <- cs, d <- ds, c + d < k]
-      qv = VU.fromList qs
+      qs = [c + d | c <- cs, d <- ds, c + d < k]
+      qv = VU.modify (VAI.sortBy compare) $ VU.fromList qs
       lenQs = length qs
       -- qsの中にp + qi == kとなるqiがあるか？(k-p以上の値を持つ最小のindexがあり、かつそれがk-pと一致するか？)
       check p =

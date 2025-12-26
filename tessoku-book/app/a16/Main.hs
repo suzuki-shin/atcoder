@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Main where
 
@@ -52,7 +53,7 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, [Int], [Int])
 
 type Codom = Int
 
@@ -60,12 +61,20 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+-- solve x = trace (show x) def
+solve (_, a1:as, bs) = final
+  where
+    av = VU.fromList as
+    bv = VU.fromList bs
+    (final, _) = VU.foldl' step (a1, 0) (VU.zip av bv)
+    step :: (Int, Int) -> (Int, Int) -> (Int, Int)
+    step (pre1, pre2) (a, b) = (min (pre1 + a) (pre2 + b), pre1)
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n] : as : bs : _ -> (n, as, bs)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
@@ -327,6 +336,7 @@ shakutori p lls@(l : ls) rrs@(r : rs) len
 -- 左端 L が終端に達したら終了
 shakutori _ _ _ _ = []
 
+
 -- https://publish.obsidian.md/naoya/articles/%E9%96%A2%E6%95%B0%E9%81%A9%E7%94%A8%E3%81%AB%E3%82%88%E3%82%8B%E7%8A%B6%E6%85%8B%E9%81%B7%E7%A7%BB%E3%81%A7+DP+%E3%82%92%E8%A7%A3%E3%81%8F
 -- ex) accumArrayDP @UArray f max minBound (0, wx) [(0, 0)] wvs
 {-# INLINE accumArrayDP #-}
@@ -355,3 +365,5 @@ accumArrayDP f op initial (l, u) v0s xs = do
         concatMap (filter (inRange (bounds dp) . fst) . (`f` x)) (assocs dp)
 
 {- End Bonsai -}
+
+

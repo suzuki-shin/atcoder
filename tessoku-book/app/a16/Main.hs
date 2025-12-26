@@ -62,18 +62,18 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 -- solve x = trace (show x) def
-solve (_, a1:as, bs) = final
+solve (_, a2:as, bs) = final
   where
     av = VU.fromList as
     bv = VU.fromList bs
-    (final, _) = VU.foldl' step (a1, 0) (VU.zip av bv)
+    (final, _) = VU.foldl' step (a2, 0) (VU.zip av bv)
+    -- (final, _) = [(a2,0) `step` (a3, b3) `step` (a4, b4) ...]
     step :: (Int, Int) -> (Int, Int) -> (Int, Int)
     -- pre1: 部屋i-1までにかかった累積時間
     -- pre2: 部屋i-2までにかかった累積時間
     -- a: 部屋i-iから部屋iへ向かう通路にかかる時間
     -- b: 部屋i-2から部屋iへ向かう通路にかかる時間
     step (pre1, pre2) (a, b) = (min (pre1 + a) (pre2 + b), pre1)
-
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

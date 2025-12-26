@@ -68,6 +68,10 @@ solve (_, a1:as, bs) = final
     bv = VU.fromList bs
     (final, _) = VU.foldl' step (a1, 0) (VU.zip av bv)
     step :: (Int, Int) -> (Int, Int) -> (Int, Int)
+    -- pre1: 部屋i-1までにかかった累積時間
+    -- pre2: 部屋i-2までにかかった累積時間
+    -- a: 部屋i-iから部屋iへ向かう通路にかかる時間
+    -- b: 部屋i-2から部屋iへ向かう通路にかかる時間
     step (pre1, pre2) (a, b) = (min (pre1 + a) (pre2 + b), pre1)
 
 

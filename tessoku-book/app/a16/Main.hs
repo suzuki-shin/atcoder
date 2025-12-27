@@ -1,6 +1,7 @@
 {-# LANGUAGE GHC2021 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LexicalNegation #-}
@@ -8,6 +9,7 @@
 {-# LANGUAGE NPlusKPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
@@ -17,10 +19,14 @@ module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
-import Control.Arrow
+import Control.Arrow hiding ((<+>))
+import Control.Arrow qualified as Arrow
 import Control.Monad
+import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
+import Data.Array.MArray (readArray, writeArray)
+import Data.Array.ST (STArray, newArray, runSTArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
 import Data.Bits
@@ -60,20 +66,25 @@ type Codom = Int
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
+-- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
 solve :: Solver
--- solve x = trace (show x) def
-solve (_, a2:as, bs) = final
+solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dungeon (asA, bsA, n)
   where
-    av = VU.fromList as
-    bv = VU.fromList bs
-    (final, _) = VU.foldl' step (a2, 0) (VU.zip av bv)
-    -- (final, _) = [(a2,0) `step` (a3, b3) `step` (a4, b4) ...]
-    step :: (Int, Int) -> (Int, Int) -> (Int, Int)
-    -- pre1: 部屋i-1までにかかった累積時間
-    -- pre2: 部屋i-2までにかかった累積時間
-    -- a: 部屋i-iから部屋iへ向かう通路にかかる時間
-    -- b: 部屋i-2から部屋iへ向かう通路にかかる時間
-    step (pre1, pre2) (a, b) = (min (pre1 + a) (pre2 + b), pre1)
+    asA = listArray (2,n) as
+    bsA = listArray (3,n) bs
+
+{-# INLINE dungeon #-}
+dungeon :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
+dungeon (as, bs, n) =
+  DPProblem
+    { start = n,
+      getRange = (1, n),
+      isTrivial = \case
+        1 -> Just $ MinPlus 0
+        2 -> Just $ MinPlus $ as ! 2
+        _ -> Nothing,
+      subproblems = \p -> [(MinPlus $ as ! p, p - 1), (MinPlus $ bs ! p, p - 2)]
+    }
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -340,34 +351,68 @@ shakutori p lls@(l : ls) rrs@(r : rs) len
 -- 左端 L が終端に達したら終了
 shakutori _ _ _ _ = []
 
+{- DP -}
+-- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
+class Semiring s where
+  (<+>) :: s -> s -> s
+  (<.>) :: s -> s -> s
+  zero :: s
+  one :: s
 
--- https://publish.obsidian.md/naoya/articles/%E9%96%A2%E6%95%B0%E9%81%A9%E7%94%A8%E3%81%AB%E3%82%88%E3%82%8B%E7%8A%B6%E6%85%8B%E9%81%B7%E7%A7%BB%E3%81%A7+DP+%E3%82%92%E8%A7%A3%E3%81%8F
--- ex) accumArrayDP @UArray f max minBound (0, wx) [(0, 0)] wvs
-{-# INLINE accumArrayDP #-}
-accumArrayDP ::
-  ( IArray a e,
-    Ix v,
-    Eq e,
-    Show e,
-    Show v,
-    Show (a v e),
-    Foldable t
-  ) =>
-  ((v, e) -> x -> [(v, e')]) -> -- 状態遷移関数 f v / x をみて v の次の遷移可能性を返す
-  (e -> e' -> e) -> -- 緩和の二項演算
-  e -> -- 初期値 (0, minBound, maxBound, False など)
-  (v, v) -> -- 状態空間の下界、上界
-  [(v, e')] -> -- 開始時点の状態
-  t x -> -- 入力 (時間遷移)
-  a v e -- Array or UArray
-accumArrayDP f op initial (l, u) v0s xs = do
-  let dp = accumArray op initial (l, u) v0s
-  foldl' transition dp xs
+newtype MaxPlus = MaxPlus {unMaxPlus :: Int} deriving (Eq, Ord, Show)
+
+newtype MinPlus = MinPlus {unMinPlus :: Int} deriving (Eq, Ord, Show)
+
+newtype Boolean = Boolean {unBoolean :: Bool} deriving (Eq, Ord, Show)
+
+instance Semiring MaxPlus where
+  (MaxPlus v1) <+> (MaxPlus v2) = MaxPlus (max v1 v2)
+  t1@(MaxPlus v1) <.> t2@(MaxPlus v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = MaxPlus (v1 + v2)
+  zero = MaxPlus minBound
+  one = MaxPlus 0
+
+instance Semiring MinPlus where
+  (MinPlus v1) <+> (MinPlus v2) = MinPlus (min v1 v2)
+  t1@(MinPlus v1) <.> t2@(MinPlus v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = MinPlus (v1 + v2)
+  zero = MinPlus maxBound
+  one = MinPlus 0
+
+instance Semiring Boolean where
+  (Boolean v1) <+> (Boolean v2) = Boolean (v1 || v2)
+  t1@(Boolean v1) <.> t2@(Boolean v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = Boolean (v1 && v2)
+  zero = Boolean False
+  one = Boolean True
+
+data DPProblem p sc = DPProblem
+  { start :: p,
+    getRange :: (p, p),
+    isTrivial :: p -> Maybe sc,
+    subproblems :: p -> [(sc, p)]
+  }
+
+dpSolve :: forall i sc s. (Semiring sc, Ix i, Eq sc) => DPProblem i sc -> ST s sc
+dpSolve dp = do
+  memo <- newArray (getRange dp) zero :: ST s (STArray s i sc)
+  go (start dp) memo
   where
-    transition dp x =
-      accumArray op initial (l, u) $
-        concatMap (filter (inRange (bounds dp) . fst) . (`f` x)) (assocs dp)
+    go p memo
+      | Just val <- isTrivial dp p = return val
+      | otherwise = do
+          res <- readArray memo p
+          if res /= zero
+            then return res
+            else do
+              ret <- foldM (\acc (s, sp) -> (<+>) acc . (<.>) s <$> go sp memo) zero (subproblems dp p)
+              writeArray memo p ret
+              return ret
 
 {- End Bonsai -}
-
-

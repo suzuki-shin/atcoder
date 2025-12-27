@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Main where
 
@@ -52,26 +53,43 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, [Int], [Int])
 
-type Codom = Int
+type Codom = (Int, [Int])
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (_, a2:as, bs) = (length finalPath, reverse finalPath)
+  where
+    av = VU.fromList as -- A3, A4...
+    bv = VU.fromList bs -- B3, B4...
+
+    -- 状態: ((直前の部屋までのコスト, 直前の部屋までの逆順経路), (2つ前の...))
+    initialState :: ((Int, [Int]), (Int, [Int]))
+    initialState = ((a2, [2, 1]), (0, [1]))
+
+    ((_, finalPath), _) = VU.ifoldl' step initialState (VU.zip av bv)
+
+    step :: ((Int, [Int]), (Int, [Int])) -> Int -> (Int, Int) -> ((Int, [Int]), (Int, [Int]))
+    step ((c1, p1), (c2, p2)) i (a, b) =
+        let room = i + 3
+            costFrom1 = c1 + a
+            costFrom2 = c2 + b
+        in if costFrom1 <= costFrom2
+           then ((costFrom1, room : p1), (c1, p1))
+           else ((costFrom2, room : p2), (c1, p1))
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  [n] : as : bs : _ -> (n, as, bs)
+  _ -> invalid $ "toDom: " ++ show @Int 91
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
-
+encode (k, ps) = [[k],ps]
 -- encode = map (:[])
 
 main :: IO ()
@@ -90,7 +108,7 @@ decode = \case
     hw:grid ->
         let [h, w] = map digitToInt hw
         in (h, w, grid)
-    _ -> invalid $ "decode: " ++ show @Int __LINE__
+    _ -> invalid $ "decode: " ++ show @Int 114
 
 -- Pattern: Int & String
 -- Input: 5
@@ -100,7 +118,7 @@ type Dom (Int, String)
 decode :: [[I]] -> Dom
 decode = \ case
     n:as:_ -> (read n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+    _   -> invalid $ "toDom: " ++ show @Int 124
 -}
 {- Encode Pattern -}
 {-
@@ -328,3 +346,4 @@ shakutori p lls@(l : ls) rrs@(r : rs) len
 shakutori _ _ _ _ = []
 
 {- End Bonsai -}
+

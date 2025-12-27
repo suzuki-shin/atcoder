@@ -70,8 +70,8 @@ type Solver = Dom -> Codom
 solve :: Solver
 solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dungeon (asA, bsA, n)
   where
-    asA = listArray (2,n) as
-    bsA = listArray (3,n) bs
+    asA = listArray (2, n) as
+    bsA = listArray (3, n) bs
 
 {-# INLINE dungeon #-}
 dungeon :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
@@ -366,30 +366,42 @@ newtype MinPlus = MinPlus {unMinPlus :: Int} deriving (Eq, Ord, Show)
 newtype Boolean = Boolean {unBoolean :: Bool} deriving (Eq, Ord, Show)
 
 instance Semiring MaxPlus where
+  {-# INLINE (<+>) #-}
   (MaxPlus v1) <+> (MaxPlus v2) = MaxPlus (max v1 v2)
+  {-# INLINE (<.>) #-}
   t1@(MaxPlus v1) <.> t2@(MaxPlus v2)
     | t1 == zero = zero
     | t2 == zero = zero
     | otherwise = MaxPlus (v1 + v2)
+  {-# INLINE zero #-}
   zero = MaxPlus minBound
+  {-# INLINE one #-}
   one = MaxPlus 0
 
 instance Semiring MinPlus where
+  {-# INLINE (<+>) #-}
   (MinPlus v1) <+> (MinPlus v2) = MinPlus (min v1 v2)
+  {-# INLINE (<.>) #-}
   t1@(MinPlus v1) <.> t2@(MinPlus v2)
     | t1 == zero = zero
     | t2 == zero = zero
     | otherwise = MinPlus (v1 + v2)
+  {-# INLINE zero #-}
   zero = MinPlus maxBound
+  {-# INLINE one #-}
   one = MinPlus 0
 
 instance Semiring Boolean where
+  {-# INLINE (<+>) #-}
   (Boolean v1) <+> (Boolean v2) = Boolean (v1 || v2)
+  {-# INLINE (<.>) #-}
   t1@(Boolean v1) <.> t2@(Boolean v2)
     | t1 == zero = zero
     | t2 == zero = zero
     | otherwise = Boolean (v1 && v2)
+  {-# INLINE zero #-}
   zero = Boolean False
+  {-# INLINE one #-}
   one = Boolean True
 
 data DPProblem p sc = DPProblem
@@ -399,6 +411,15 @@ data DPProblem p sc = DPProblem
     subproblems :: p -> [(sc, p)]
   }
 
+-- ex)
+-- n = 5
+-- as = listArray (2,n) [2,4,1,3]
+-- bs = listArray (3,n) [5,3,7]
+-- dp :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
+-- dp (as, bs, n) = DPProblem {...}
+-- solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dp (as, bs, n)
+
+{-# INLINE dpSolve #-}
 dpSolve :: forall i sc s. (Semiring sc, Ix i, Eq sc) => DPProblem i sc -> ST s sc
 dpSolve dp = do
   memo <- newArray (getRange dp) zero :: ST s (STArray s i sc)

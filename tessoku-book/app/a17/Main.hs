@@ -438,18 +438,19 @@ instance Semiring Prob where
   {-# INLINE one #-}
   one = Prob 1.0
 
+-- MinPlusWithRoute と MaxPlusWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
+-- 左側優先:
+--   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
+--   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
+-- 零化の不成立:
+--   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
+--   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
+
 -- | 最小化問題用の経路復元付きラッパー
 -- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
 data MinPlusWithRoute s p = MinPlusWithRoute !s [p]
   deriving (Show, Eq)
 
--- MinPlusWithRoute と MaxPlusWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
--- * 左側優先:
---   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
---   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
--- * 零化の不成立:
---   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
---   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
 instance (Ord s, Semiring s) => Semiring (MinPlusWithRoute s p) where
   -- ※ s1 == s2 の場合、左側（先に計算した方）の経路が優先されます（Left-biased）。
   {-# INLINE (<+>) #-}
@@ -459,7 +460,7 @@ instance (Ord s, Semiring s) => Semiring (MinPlusWithRoute s p) where
 
   {-# INLINE (<.>) #-}
   (MinPlusWithRoute s1 r1) <.> (MinPlusWithRoute s2 r2) =
-    MinPlusWithRoute (s1 <.> s2) (r1 ++ r2)
+    MinPlusWithRoute (s1 <.> s2) (r1 ++ r2) -- * r1のサイズが大きい場合、性能的に問題になる。区間DPなどでは使えない
 
   {-# INLINE zero #-}
   zero = MinPlusWithRoute zero []
@@ -480,7 +481,7 @@ instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
 
   {-# INLINE (<.>) #-}
   (MaxPlusWithRoute s1 r1) <.> (MaxPlusWithRoute s2 r2) =
-    MaxPlusWithRoute (s1 <.> s2) (r1 ++ r2)
+    MaxPlusWithRoute (s1 <.> s2) (r1 ++ r2) -- r1のサイズが大きい場合、性能的に問題になる。区間DPなどでは使えない
 
   {-# INLINE zero #-}
   zero = MaxPlusWithRoute zero []

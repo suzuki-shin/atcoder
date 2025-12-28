@@ -77,13 +77,15 @@ solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dungeon (asA, bsA, n)
 dungeon :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
 dungeon (as, bs, n) =
   DPProblem
-    { start = n,
-      getRange = (1, n),
-      isTrivial = \case
-        1 -> Just $ MinPlus 0
-        2 -> Just $ MinPlus $ as ! 2
-        _ -> Nothing,
-      subproblems = \p -> [(MinPlus $ as ! p, p - 1), (MinPlus $ bs ! p, p - 2)]
+    { start = n, -- 「部屋 $N$ に到達するまでのコスト」を知りたい。dpSolve は、ここから再帰を開始します（N -> N-1, N-2 ... -> 1）
+      getRange = (1, n), -- メモ化の範囲。部屋番号は 1 から N まであるので、サイズ N の配列をメモ化テーブルとして確保
+      isTrivial = \case -- （基底条件 / 停止条件） 再帰呼び出しを止める条件。この問題では「部屋1」と「部屋2」が特別
+        1 -> Just $ MinPlus 0 -- スタート地点。コストは0
+        2 -> Just $ MinPlus $ as ! 2    -- 部屋2へのルートは「1 -> 2」の一択のみ
+        _ -> Nothing,                   -- それ以外の部屋は計算が必要
+      subproblems = \p -> -- （遷移 / 漸化式）
+        [(MinPlus $ as ! p, p - 1), -- ルートA: 部屋 p-1 から来る
+         (MinPlus $ bs ! p, p - 2)] -- ルートB: 部屋 p-2 から来る
     }
 
 {-# INLINE decode #-}
@@ -364,6 +366,8 @@ newtype MaxPlus = MaxPlus {unMaxPlus :: Int} deriving (Eq, Ord, Show)
 newtype MinPlus = MinPlus {unMinPlus :: Int} deriving (Eq, Ord, Show)
 
 newtype Boolean = Boolean {unBoolean :: Bool} deriving (Eq, Ord, Show)
+-- 通常の数え上げ（Int）
+newtype Count = Count {getCount :: Int} deriving (Eq, Show)
 
 instance Semiring MaxPlus where
   {-# INLINE (<+>) #-}
@@ -404,11 +408,34 @@ instance Semiring Boolean where
   {-# INLINE one #-}
   one = Boolean True
 
+instance Semiring Count where
+  {-# INLINE (<+>) #-}
+  Count a <+> Count b = Count (a + b) -- 足し算
+  {-# INLINE (<.>) #-}
+  Count a <.> Count b = Count (a * b) -- 掛け算
+  {-# INLINE zero #-}
+  zero = Count 0
+  {-# INLINE one #-}
+  one = Count 1
+
+-- 確率（Double）
+newtype Prob = Prob {getProb :: Double} deriving (Eq, Show)
+
+instance Semiring Prob where
+  {-# INLINE (<+>) #-}
+  Prob a <+> Prob b = Prob (a + b)
+  {-# INLINE (<.>) #-}
+  Prob a <.> Prob b = Prob (a * b)
+  {-# INLINE zero #-}
+  zero = Prob 0.0
+  {-# INLINE one #-}
+  one = Prob 1.0
+
 data DPProblem p sc = DPProblem
-  { start :: p,
-    getRange :: (p, p),
-    isTrivial :: p -> Maybe sc,
-    subproblems :: p -> [(sc, p)]
+  { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序
+    getRange :: (p, p), -- 状態 p のとりうる範囲（メモ化テーブルのサイズ用）
+    isTrivial :: p -> Maybe sc, -- 基底条件（漸化式の終了条件）
+    subproblems :: p -> [(sc, p)] -- 遷移（部分問題への分解）
   }
 
 -- ex)

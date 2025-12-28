@@ -51,6 +51,7 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
+import AtCoder.Extra.HashMap (member)
 
 debug :: Bool
 debug = False
@@ -71,7 +72,7 @@ solve (n, s, as) =
   let asA = listArray (1, n) as
       (BooleanWithRoute b revRoute) = runST $ dpSolve $ dpB18 (asA, n, s)
    in if b
-        then [[length revRoute], reverse revRoute]
+        then [[length (toList revRoute)], reverse (toList revRoute)]
         else [[-1]]
 
 {-# INLINE dpB18 #-}
@@ -84,18 +85,18 @@ dpB18 (as, n, k) =
         if i == 0
           then
             if j == 0
-              then Just (BooleanWithRoute True [])
-              else Just (BooleanWithRoute False [])
+              then Just (BooleanWithRoute True mempty)
+              else Just (BooleanWithRoute False mempty)
           else
             if j == 0
-              then Just (BooleanWithRoute True [])
+              then Just (BooleanWithRoute True mempty)
               else
                 if j < 0
-                  then Just (BooleanWithRoute False [])
+                  then Just (BooleanWithRoute False mempty)
                   else Nothing,
       subproblems = \(i, j) ->
-        [ (BooleanWithRoute True [i], (i - 1, j - as ! i)),
-          (BooleanWithRoute True [], (i - 1, j))
+        [ (BooleanWithRoute True (Single i), (i - 1, j - as ! i)),
+          (BooleanWithRoute True mempty, (i - 1, j))
         ]
     }
 
@@ -491,7 +492,7 @@ instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
   one = MaxPlusWithRoute one []
 
 -- | 到達可能性判定（Boolean）における経路復元付き型
-data BooleanWithRoute p = BooleanWithRoute !Bool [p]
+data BooleanWithRoute p = BooleanWithRoute !Bool (JoinList p)
   deriving (Show, Eq)
 
 instance Semiring (BooleanWithRoute p) where
@@ -504,16 +505,38 @@ instance Semiring (BooleanWithRoute p) where
   -- 両方が到達可能(True)な場合のみ、経路を連結して True とする
   -- どちらかが False なら、結果も False (zero) になる
   {-# INLINE (<.>) #-}
-  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 ++ r2)
+  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 <> r2)
   _ <.> _ = zero
 
   -- \| 到達不能（False）
   {-# INLINE zero #-}
-  zero = BooleanWithRoute False []
+  zero = BooleanWithRoute False Empty
 
   -- \| 到達可能（True, 経路なし）
   {-# INLINE one #-}
-  one = BooleanWithRoute True []
+  one = BooleanWithRoute True Empty
+
+-- | 結合がO(1)のデータ構造。ListにするのはO(N)
+data JoinList a
+  = Empty
+  | Single !a
+  | Append (JoinList a) (JoinList a)
+  deriving (Show, Eq)
+
+instance Semigroup (JoinList a) where
+  Empty <> b = b
+  a <> Empty = a
+  a <> b = Append a b
+
+instance Monoid (JoinList a) where
+  mempty = Empty
+
+toList :: JoinList a -> [a]
+toList jl = go jl []
+  where
+    go Empty acc = acc
+    go (Single x) acc = x : acc
+    go (Append l r) acc = go l (go r acc)
 
 data DPProblem p sc = DPProblem
   { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序

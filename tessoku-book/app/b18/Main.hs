@@ -59,26 +59,55 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, Int, [Int])
 
-type Codom = Int
+type Codom = [[Int]]
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n, s, as) =
+  let asA = listArray (1, n) as
+      (BooleanWithRoute b revRoute) = runST $ dpSolve $ dpB18 (asA, n, s)
+   in if b
+        then [[length revRoute], reverse revRoute]
+        else [[-1]]
+
+{-# INLINE dpB18 #-}
+dpB18 :: (Array Int Int, Int, Int) -> DPProblem (Int, Int) (BooleanWithRoute Int)
+dpB18 (as, n, k) =
+  DPProblem
+    { start = (n, k),
+      getRange = ((0, 0), (n, k)),
+      isTrivial = \(i, j) ->
+        if i == 0
+          then
+            if j == 0
+              then Just (BooleanWithRoute True [])
+              else Just (BooleanWithRoute False [])
+          else
+            if j == 0
+              then Just (BooleanWithRoute True [])
+              else
+                if j < 0
+                  then Just (BooleanWithRoute False [])
+                  else Nothing,
+      subproblems = \(i, j) ->
+        [ (BooleanWithRoute True [i], (i - 1, j - as ! i)),
+          (BooleanWithRoute True [], (i - 1, j))
+        ]
+    }
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n,s] : as : _ -> (n, s, as)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
-
+encode r = r
 -- encode = map (:[])
 
 main :: IO ()
@@ -218,6 +247,32 @@ instance Default () where def = ()
 instance (Default a, Default b) => Default (a, b) where def = (def, def)
 
 instance (Default a, Default b, Default c) => Default (a, b, c) where def = (def, def, def)
+
+-- 偶数番目の要素を抽出
+evenPositions :: [a] -> [a]
+evenPositions = positionsBy even
+
+-- 奇数番目の要素を抽出
+oddPositions :: [a] -> [a]
+oddPositions = positionsBy odd
+
+positionsBy :: (Int -> Bool) -> [a] -> [a]
+positionsBy idxPred xs = [x | (i, x) <- zip [0 ..] xs, idxPred i]
+
+tuple2 :: (a, a) -> [a]
+tuple2 (x, y) = [x, y]
+
+tuple3 :: (a, a, a) -> [a]
+tuple3 (x, y, z) = [x, y, z]
+
+class ToVector s a where
+  toVector :: (VU.Unbox a) => Int -> s -> VU.Vector a
+
+instance ToVector [a] a where
+  toVector n = VU.unfoldrN n uncons
+
+instance ToVector B.ByteString Char where
+  toVector n bs = VU.generate (min n (B.length bs)) (B.index bs)
 
 {-# INLINE vLength #-}
 vLength :: (VG.Vector v e) => v e -> Int
@@ -387,7 +442,7 @@ instance Semiring Prob where
   {-# INLINE one #-}
   one = Prob 1.0
 
--- MinPlusWithRoute と MaxPlusWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
+-- XxxWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
 -- 左側優先:
 --   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
 --   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
@@ -395,8 +450,6 @@ instance Semiring Prob where
 --   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
 --   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
 
--- | 最小化問題用の経路復元付きラッパー
--- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
 data MinPlusWithRoute s p = MinPlusWithRoute !s [p]
   deriving (Show, Eq)
 
@@ -436,6 +489,31 @@ instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
   zero = MaxPlusWithRoute zero []
   {-# INLINE one #-}
   one = MaxPlusWithRoute one []
+
+-- | 到達可能性判定（Boolean）における経路復元付き型
+data BooleanWithRoute p = BooleanWithRoute !Bool [p]
+  deriving (Show, Eq)
+
+instance Semiring (BooleanWithRoute p) where
+  -- 左側が到達可能(True)なら即採用（左側優先）
+  -- 左がダメで右が到達可能なら右を採用。両方ダメならFalse
+  {-# INLINE (<+>) #-}
+  lhs@(BooleanWithRoute True _) <+> _ = lhs
+  _ <+> rhs = rhs
+
+  -- 両方が到達可能(True)な場合のみ、経路を連結して True とする
+  -- どちらかが False なら、結果も False (zero) になる
+  {-# INLINE (<.>) #-}
+  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 ++ r2)
+  _ <.> _ = zero
+
+  -- \| 到達不能（False）
+  {-# INLINE zero #-}
+  zero = BooleanWithRoute False []
+
+  -- \| 到達可能（True, 経路なし）
+  {-# INLINE one #-}
+  one = BooleanWithRoute True []
 
 data DPProblem p sc = DPProblem
   { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序

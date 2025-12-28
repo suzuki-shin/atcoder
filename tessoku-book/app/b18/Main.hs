@@ -554,20 +554,20 @@ data DPProblem p sc = DPProblem
 -- solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dp (as, bs, n)
 
 {-# INLINE dpSolve #-}
-dpSolve :: forall i sc s. (Semiring sc, Ix i, Eq sc) => DPProblem i sc -> ST s sc
+dpSolve :: forall i sc s. (Semiring sc, Ix i) => DPProblem i sc -> ST s sc
 dpSolve dp = do
-  memo <- newArray (getRange dp) zero :: ST s (STArray s i sc)
+  memo <- newArray (getRange dp) Nothing :: ST s (STArray s i (Maybe sc))
   go (start dp) memo
   where
     go p memo
       | Just val <- isTrivial dp p = return val
       | otherwise = do
           res <- readArray memo p
-          if res /= zero
-            then return res
-            else do
+          case res of
+            Just val -> return val
+            Nothing -> do
               ret <- foldM (\acc (s, sp) -> (<+>) acc . (<.>) s <$> go sp memo) zero (subproblems dp p)
-              writeArray memo p ret
+              writeArray memo p (Just ret)
               return ret
 
 {- End Bonsai -}

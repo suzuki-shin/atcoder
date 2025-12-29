@@ -27,8 +27,8 @@ import Control.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
-import Data.Array.MArray (readArray, writeArray)
-import Data.Array.ST (STArray, newArray, runSTArray)
+import Data.Array.MArray (readArray, writeArray, newArray_)
+import Data.Array.ST (STArray, STUArray, newArray, runSTArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
 import Data.Bits
@@ -526,18 +526,26 @@ data DPProblem p sc = DPProblem
 {-# INLINE dpSolve #-}
 dpSolve :: forall i sc s. (Semiring sc, Ix i) => DPProblem i sc -> ST s sc
 dpSolve dp = do
-  memo <- newArray (getRange dp) Nothing :: ST s (STArray s i (Maybe sc))
-  go (start dp) memo
+  let rng = getRange dp
+  memo <- newArray_ rng :: ST s (STArray s i sc)
+  visited <- newArray rng False :: ST s (STUArray s i Bool)
+
+  go (start dp) memo visited
   where
-    go p memo
+    go p memo visited
       | Just val <- isTrivial dp p = return val
       | otherwise = do
-          res <- readArray memo p
-          case res of
-            Just val -> return val
-            Nothing -> do
-              ret <- foldM (\acc (s, sp) -> (<+>) acc . (<.>) s <$> go sp memo) zero (subproblems dp p)
-              writeArray memo p (Just ret)
+          isVisited <- readArray visited p
+          if isVisited
+            then readArray memo p
+            else do
+              let f acc (s, sp) = do
+                    v <- go sp memo visited
+                    return $! acc <+> (s <.> v)
+
+              ret <- foldM f zero (subproblems dp p)
+              writeArray memo p ret
+              writeArray visited p True
               return ret
 
 {- End Bonsai -}

@@ -67,7 +67,7 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, as, bs) = (length route, reverse route)
+solve (n, as, bs) = (length (toList route), reverse (toList route))
   where
     (MinPlusWithRoute _ route) = runST $ dpSolve $ dp (listArray (2, n) as, listArray (3, n) bs, n)
 
@@ -79,13 +79,13 @@ dp (as, bs, n) =
       getRange = (1, n), -- 状態 p のとりうる範囲（メモ化テーブルのサイズ用）
       isTrivial = \case
         -- p -> Maybe sc, -- 基底条件（漸化式の終了条件）
-        1 -> Just $ MinPlusWithRoute (MinPlus 0) [1]
-        2 -> Just $ MinPlusWithRoute (MinPlus (as ! 2)) [2, 1]
+        1 -> Just $ MinPlusWithRoute (MinPlus 0) $ Single 1
+        2 -> Just $ MinPlusWithRoute (MinPlus (as ! 2)) $ Append (Single 2) (Single 1)
         _ -> Nothing,
       subproblems = \p ->
         -- :: p -> [(sc, p)] -- 遷移（部分問題への分解）
-        [ (MinPlusWithRoute (MinPlus (as ! p)) [p], p - 1),
-          (MinPlusWithRoute (MinPlus (bs ! p)) [p], p - 2)
+        [ (MinPlusWithRoute (MinPlus (as ! p)) (Single p), p - 1),
+          (MinPlusWithRoute (MinPlus (bs ! p)) (Single p), p - 2)
         ]
     }
 
@@ -355,6 +355,7 @@ shakutori p lls@(l : ls) rrs@(r : rs) len
 -- 左端 L が終端に達したら終了
 shakutori _ _ _ _ = []
 
+
 {- DP -}
 -- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
 class Semiring s where
@@ -368,13 +369,9 @@ newtype MaxPlus = MaxPlus {unMaxPlus :: Int} deriving (Eq, Ord, Show)
 newtype MinPlus = MinPlus {unMinPlus :: Int} deriving (Eq, Ord, Show)
 
 newtype Boolean = Boolean {unBoolean :: Bool} deriving (Eq, Ord, Show)
+
 -- 通常の数え上げ（Int）
 newtype Count = Count {getCount :: Int} deriving (Eq, Show)
-
--- s: スコアの型（MinPlusなど）
--- p: 経路の要素の型（Intなど）
--- >>> WithRoute MinPlus Int -- MinPlusで最短経路を計算し、Intの経路を残す
-data WithRoute s p = WithRoute !s [p] deriving (Show, Eq)
 
 instance Semiring MaxPlus where
   {-# INLINE (<+>) #-}
@@ -438,7 +435,7 @@ instance Semiring Prob where
   {-# INLINE one #-}
   one = Prob 1.0
 
--- MinPlusWithRoute と MaxPlusWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
+-- XxxWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
 -- 左側優先:
 --   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
 --   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
@@ -446,9 +443,7 @@ instance Semiring Prob where
 --   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
 --   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
 
--- | 最小化問題用の経路復元付きラッパー
--- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
-data MinPlusWithRoute s p = MinPlusWithRoute !s [p]
+data MinPlusWithRoute s p = MinPlusWithRoute !s (JoinList p)
   deriving (Show, Eq)
 
 instance (Ord s, Semiring s) => Semiring (MinPlusWithRoute s p) where
@@ -460,16 +455,16 @@ instance (Ord s, Semiring s) => Semiring (MinPlusWithRoute s p) where
 
   {-# INLINE (<.>) #-}
   (MinPlusWithRoute s1 r1) <.> (MinPlusWithRoute s2 r2) =
-    MinPlusWithRoute (s1 <.> s2) (r1 ++ r2) -- * r1のサイズが大きい場合、性能的に問題になる。区間DPなどでは使えない
+    MinPlusWithRoute (s1 <.> s2) (r1 <> r2)
 
   {-# INLINE zero #-}
-  zero = MinPlusWithRoute zero []
+  zero = MinPlusWithRoute zero mempty
   {-# INLINE one #-}
-  one = MinPlusWithRoute one []
+  one = MinPlusWithRoute one mempty
 
 -- | 最大化問題用の経路復元付きラッパー
 -- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
-data MaxPlusWithRoute s p = MaxPlusWithRoute !s [p]
+data MaxPlusWithRoute s p = MaxPlusWithRoute !s (JoinList p)
   deriving (Show, Eq)
 
 instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
@@ -481,12 +476,59 @@ instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
 
   {-# INLINE (<.>) #-}
   (MaxPlusWithRoute s1 r1) <.> (MaxPlusWithRoute s2 r2) =
-    MaxPlusWithRoute (s1 <.> s2) (r1 ++ r2) -- r1のサイズが大きい場合、性能的に問題になる。区間DPなどでは使えない
+    MaxPlusWithRoute (s1 <.> s2) (r1 <> r2)
 
   {-# INLINE zero #-}
-  zero = MaxPlusWithRoute zero []
+  zero = MaxPlusWithRoute zero mempty
   {-# INLINE one #-}
-  one = MaxPlusWithRoute one []
+  one = MaxPlusWithRoute one mempty
+
+-- | 到達可能性判定（Boolean）における経路復元付き型
+data BooleanWithRoute p = BooleanWithRoute !Bool (JoinList p)
+  deriving (Show, Eq)
+
+instance Semiring (BooleanWithRoute p) where
+  -- 左側が到達可能(True)なら即採用（左側優先）
+  -- 左がダメで右が到達可能なら右を採用。両方ダメならFalse
+  {-# INLINE (<+>) #-}
+  lhs@(BooleanWithRoute True _) <+> _ = lhs
+  _ <+> rhs = rhs
+
+  -- 両方が到達可能(True)な場合のみ、経路を連結して True とする
+  -- どちらかが False なら、結果も False (zero) になる
+  {-# INLINE (<.>) #-}
+  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 <> r2)
+  _ <.> _ = zero
+
+  -- \| 到達不能（False）
+  {-# INLINE zero #-}
+  zero = BooleanWithRoute False Empty
+
+  -- \| 到達可能（True, 経路なし）
+  {-# INLINE one #-}
+  one = BooleanWithRoute True Empty
+
+-- | 結合がO(1)のデータ構造。ListにするのはO(N)
+data JoinList a
+  = Empty
+  | Single !a
+  | Append (JoinList a) (JoinList a)
+  deriving (Show, Eq)
+
+instance Semigroup (JoinList a) where
+  Empty <> b = b
+  a <> Empty = a
+  a <> b = Append a b
+
+instance Monoid (JoinList a) where
+  mempty = Empty
+
+toList :: JoinList a -> [a]
+toList jl = go jl []
+  where
+    go Empty acc = acc
+    go (Single x) acc = x : acc
+    go (Append l r) acc = go l (go r acc)
 
 data DPProblem p sc = DPProblem
   { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序
@@ -504,20 +546,20 @@ data DPProblem p sc = DPProblem
 -- solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dp (as, bs, n)
 
 {-# INLINE dpSolve #-}
-dpSolve :: forall i sc s. (Semiring sc, Ix i, Eq sc) => DPProblem i sc -> ST s sc
+dpSolve :: forall i sc s. (Semiring sc, Ix i) => DPProblem i sc -> ST s sc
 dpSolve dp = do
-  memo <- newArray (getRange dp) zero :: ST s (STArray s i sc)
+  memo <- newArray (getRange dp) Nothing :: ST s (STArray s i (Maybe sc))
   go (start dp) memo
   where
     go p memo
       | Just val <- isTrivial dp p = return val
       | otherwise = do
           res <- readArray memo p
-          if res /= zero
-            then return res
-            else do
+          case res of
+            Just val -> return val
+            Nothing -> do
               ret <- foldM (\acc (s, sp) -> (<+>) acc . (<.>) s <$> go sp memo) zero (subproblems dp p)
-              writeArray memo p ret
+              writeArray memo p (Just ret)
               return ret
-{- End Bonsai -}
 
+{- End Bonsai -}

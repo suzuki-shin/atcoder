@@ -51,7 +51,6 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
-import AtCoder.Extra.HashMap (member)
 
 debug :: Bool
 debug = False

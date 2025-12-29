@@ -76,20 +76,20 @@ solve (n', maxW', wvs) = unMaxPlus $ runST $ dpSolve $ dp (wvsA, n', maxW')
      wvsA = listArray (1,n') wvs
      dp :: (Array Int (Int, Int), Int, Int) -> DPProblem (Int, Int) MaxPlus
      dp (as, n, maxW) = DPProblem
-        { start = (maxW, ),
-          getRange = ((0,1), (maxW, n+1)),
+        { start = (maxW, n),
+          getRange = ((0,0), (maxW, n)),
           isTrivial = \(currentCapacity, i) ->
-            (if i > n || currentCapacity == 0 -- 重さ0のアイテムはないので　currentCapacity == 0も終了
+            (if i == 0 || currentCapacity == 0 -- 重さ0のアイテムはないので　currentCapacity == 0も終了
                then Just $ MaxPlus 0
                else Nothing),
           subproblems = \(currentCapacity, i) ->
             let (wi, vi) = as ! i
             in if currentCapacity >= wi
                 then [
-                  (MaxPlus vi, (currentCapacity - wi, i+1)) -- 入れる
-                , (MaxPlus 0, (currentCapacity, i+1)) --入れない
+                  (MaxPlus vi, (currentCapacity - wi, i-1)) -- 入れる
+                , (MaxPlus 0, (currentCapacity, i-1)) --入れない
                 ]
-                else [(MaxPlus 0, (currentCapacity, i+1))] -- 入らない
+                else [(MaxPlus 0, (currentCapacity, i-1))] -- 入らない
         }
 
 

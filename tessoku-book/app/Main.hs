@@ -504,7 +504,6 @@ dpSolve dp = do
   memo <- newArray_ rng :: ST s (STArray s i sc)
   visited <- newArray rng False :: ST s (STUArray s i Bool)
 
-  go :: i -> STArray s i sc -> STUArray s i Bool -> ST s sc
   go (start dp) memo visited
   where
     go p memo visited

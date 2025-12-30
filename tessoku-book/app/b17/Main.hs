@@ -63,13 +63,29 @@ type O = Int
 
 type Dom = (Int, [Int])
 
-type Codom = Int
+type Codom = (Int, [Int])
 
 type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n,as) = (length route, route)
+  where
+    av = VU.fromList (0:as)
+    dp :: VU.Vector Int
+    dp = VU.constructN (n+1) $ \v ->
+      let
+        i = vLength v
+      in if | i <= 1 -> 0
+            | i == 2 -> abs((av VG.! 2) - (av VG.! 1))
+            | otherwise ->
+                min (v VG.! (i-1) + abs((av VG.! i) - (av VG.! (i-1)))) (v VG.! (i-2) + abs((av VG.! i) - (av VG.! (i-2))))
+    route :: [Int]
+    route = reverse $ go n
+      where
+        go 1 = [1]
+        go i | dp VG.! i == dp VG.! (i-1) + abs(av VG.! i - av VG.! (i-1)) = i : go (i-1)
+             | otherwise = i : go (i-2)
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -79,7 +95,7 @@ decode = \case
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
+encode (k,ps) = [[k],ps]
 
 -- encode = map (:[])
 

@@ -52,9 +52,6 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
 type I = Int
 
 type O = Int
@@ -65,31 +62,41 @@ type Codom = (Int, [Int])
 
 type Solver = Dom -> Codom
 
+debug :: Bool
+debug = False
+
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, as, bs) = (length (toList route), reverse (toList route))
+solve (n, as, bs) = (length route, route)
   where
-    (MinPlusWithRoute _ route) = runST $ dpSolve $ dp (listArray (2, n) as, listArray (3, n) bs, n)
+    av = VU.fromList (0 : 0 : as)
+    bv = VU.fromList (0 : 0 : 0 : bs)
 
-{-# INLINE dp #-}
-dp :: (Array Int Int, Array Int Int, Int) -> DPProblem Int (MinPlusWithRoute MinPlus Int)
-dp (as, bs, n) =
-  DPProblem
-    { start = n, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序
-      getRange = (1, n), -- 状態 p のとりうる範囲（メモ化テーブルのサイズ用）
-      isTrivial = \case
-        -- p -> Maybe sc, -- 基底条件（漸化式の終了条件）
-        1 -> Just $ MinPlusWithRoute (MinPlus 0) $ Single 1
-        2 -> Just $ MinPlusWithRoute (MinPlus (as ! 2)) $ Append (Single 2) (Single 1)
-        _ -> Nothing,
-      subproblems = \p ->
-        -- :: p -> [(sc, p)] -- 遷移（部分問題への分解）
-        [ (MinPlusWithRoute (MinPlus (as ! p)) (Single p), p - 1),
-          (MinPlusWithRoute (MinPlus (bs ! p)) (Single p), p - 2)
-        ]
-    }
+    dp :: VU.Vector (Int, Int) -- (時間, 前の部屋番号)
+    dp = VU.constructN (n + 1) $ \v ->
+      let i = vLength v
+       in if
+            | i <= 1 -> (0, 0)
+            | i == 2 -> (av VG.! 2, 1)
+            | otherwise ->
+              let
+                timeA = fst (v VG.! (i - 1)) + av VG.! i
+                timeB = fst (v VG.! (i - 2)) + bv VG.! i
+              in if timeA <= timeB
+                  then (timeA, i-1)
+                  else (timeB, i-2)
+    route :: [Int]
+    route = reverse $ go n
+      where
+        go 1 = [1]
+        go i = i : go (snd (dp VG.! i))
 
-
+-- [(0, 1), (0, 1), (2, 2), (5, 1), (5, 2), (8, 4)]
+-- n = 5
+-- go 5
+-- 5 : go 4
+-- 5 : 4 : go 2
+-- 5 : 4 : 2 : 
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

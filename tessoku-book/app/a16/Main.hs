@@ -67,16 +67,17 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, as, bs) = dp n
+solve (n, as, bs) = dp VG.! n
   where
     av = VU.fromList (0:0:as)
     bv = VU.fromList (0:0:0:bs)
 
-    -- 部屋番号iをとり、そこまでにかかる時間を返す
-    dp :: Int -> Int
-    dp 1 = 0
-    dp 2 = av VG.! 2
-    dp i = min (dp (i-1) + av VG.! i) (dp (i-2) + bv VG.! i)
+    dp :: VU.Vector Int
+    dp = VU.constructN (n+1) $ \v ->
+      let i = vLength v
+      in if | i <= 1 -> 0
+            | i == 2 -> av VG.! 2
+            | otherwise -> min (v VG.! (i-1) + av VG.! i) (v VG.! (i-2) + bv VG.! i)
 
 
 {-# INLINE decode #-}

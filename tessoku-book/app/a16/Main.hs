@@ -52,9 +52,6 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
 type I = Int
 
 type O = Int
@@ -65,28 +62,22 @@ type Codom = Int
 
 type Solver = Dom -> Codom
 
-{-# INLINE solve #-}
--- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
-solve :: Solver
-solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dungeon (asA, bsA, n)
-  where
-    asA = listArray (2, n) as
-    bsA = listArray (3, n) bs
+debug :: Bool
+debug = False
 
-{-# INLINE dungeon #-}
-dungeon :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
-dungeon (as, bs, n) =
-  DPProblem
-    { start = n, -- 「部屋 $N$ に到達するまでのコスト」を知りたい。dpSolve は、ここから再帰を開始します（N -> N-1, N-2 ... -> 1）
-      getRange = (1, n), -- メモ化の範囲。部屋番号は 1 から N まであるので、サイズ N の配列をメモ化テーブルとして確保
-      isTrivial = \case -- （基底条件 / 停止条件） 再帰呼び出しを止める条件。この問題では「部屋1」と「部屋2」が特別
-        1 -> Just $ MinPlus 0 -- スタート地点。コストは0
-        2 -> Just $ MinPlus $ as ! 2    -- 部屋2へのルートは「1 -> 2」の一択のみ
-        _ -> Nothing,                   -- それ以外の部屋は計算が必要
-      subproblems = \p -> -- （遷移 / 漸化式）
-        [(MinPlus $ as ! p, p - 1), -- ルートA: 部屋 p-1 から来る
-         (MinPlus $ bs ! p, p - 2)] -- ルートB: 部屋 p-2 から来る
-    }
+{-# INLINE solve #-}
+solve :: Solver
+solve (n, as, bs) = dp n
+  where
+    av = VU.fromList (0:0:as)
+    bv = VU.fromList (0:0:0:bs)
+
+    -- 部屋番号iをとり、そこまでにかかる時間を返す
+    dp :: Int -> Int
+    dp 1 = 0
+    dp 2 = av VG.! 2
+    dp i = min (dp (i-1) + av VG.! i) (dp (i-2) + bv VG.! i)
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

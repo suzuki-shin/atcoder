@@ -79,15 +79,15 @@ solve (n, s, as) =
         addedSet = IS.map (+ a) currentSet
         mergedSet = IS.union currentSet addedSet
         nextSet = IS.filter (<= s) mergedSet
-    history :: [(IS.IntSet, Int, Int)] -- [(dp, val, idx)]
+    history :: [(IS.IntSet, Int, Int)] -- [(カードを使う直前の状態, カード, idx)]
     history = reverse $ zip3 (init dpList) as [1..]
-    -- route :: [Int]
     route = go s history
       where
-        go s' ((prevDp, a', idx) : rest) = if s' >= a' && IS.member (s' - a') prevDp
-          then idx : go (s' - a') rest -- 採用
-          else go s' rest -- 不採用
-        go _ [] = []
+        go _ [] = [] -- もうカードがなければ終わり
+        go s' ((prevDp, a', idx) : rest) =
+          if s' >= a' && IS.member (s' - a') prevDp -- （現在の合計値 - カードの値） が 直前の状態 に存在すれば、そこに到達可能
+            then idx : go (s' - a') rest -- 採用
+            else go s' rest -- 不採用
 
 
 

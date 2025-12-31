@@ -13,7 +13,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module Main where
 
@@ -52,62 +52,55 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
 type I = Int
 
 type O = Int
 
 type Dom = (Int, Int, [Int])
 
-type Codom = [[Int]]
+type Codom = (Int, [Int])
 
 type Solver = Dom -> Codom
+
+debug :: Bool
+debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, s, as) =
-  let asA = listArray (1, n) as
-      (BooleanWithRoute b revRoute) = runST $ dpSolve $ dpB18 (asA, n, s)
-   in if b
-        then [[length (toList revRoute)], reverse (toList revRoute)]
-        else [[-1]]
+  if null route then (-1, []) else (length route, reverse route)
+  where
+    initSet = IS.singleton 0
+    dpList :: [IS.IntSet]
+    dpList = scanl' step initSet as
+    step :: IS.IntSet -> Int -> IS.IntSet
+    step currentSet a = nextSet
+      where
+        addedSet = IS.map (+ a) currentSet
+        mergedSet = IS.union currentSet addedSet
+        nextSet = IS.filter (<= s) mergedSet
+    history :: [(IS.IntSet, Int, Int)] -- [(dp, val, idx)]
+    history = reverse $ zip3 (init dpList) as [1..]
+    -- route :: [Int]
+    route = go s history
+      where
+        go s' ((prevDp, a', idx) : rest) = if s' >= a' && IS.member (s' - a') prevDp
+          then idx : go (s' - a') rest -- 採用
+          else go s' rest -- 不採用
+        go _ [] = []
 
-{-# INLINE dpB18 #-}
-dpB18 :: (Array Int Int, Int, Int) -> DPProblem (Int, Int) (BooleanWithRoute Int)
-dpB18 (as, n, k) =
-  DPProblem
-    { start = (n, k),
-      getRange = ((0, 0), (n, k)),
-      isTrivial = \(i, j) ->
-        if i == 0
-          then
-            if j == 0
-              then Just (BooleanWithRoute True mempty)
-              else Just (BooleanWithRoute False mempty)
-          else
-            if j == 0
-              then Just (BooleanWithRoute True mempty)
-              else
-                if j < 0
-                  then Just (BooleanWithRoute False mempty)
-                  else Nothing,
-      subproblems = \(i, j) ->
-        [ (BooleanWithRoute True (Single i), (i - 1, j - as ! i)),
-          (BooleanWithRoute True mempty, (i - 1, j))
-        ]
-    }
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n,s] : as : _ -> (n, s, as)
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  [n, s] : as : _ -> (n, s, as)
+  _ -> invalid $ "toDom: " ++ show @Int 99
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = r
+encode (k, []) = [[k]]
+encode (k, ps) = [[k], ps]
 -- encode = map (:[])
 
 main :: IO ()
@@ -126,7 +119,7 @@ decode = \case
     hw:grid ->
         let [h, w] = map digitToInt hw
         in (h, w, grid)
-    _ -> invalid $ "decode: " ++ show @Int __LINE__
+    _ -> invalid $ "decode: " ++ show @Int 122
 
 -- Pattern: Int & String
 -- Input: 5
@@ -136,7 +129,7 @@ type Dom (Int, String)
 decode :: [[I]] -> Dom
 decode = \ case
     n:as:_ -> (read n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+    _   -> invalid $ "toDom: " ++ show @Int 132
 -}
 {- Encode Pattern -}
 {-
@@ -442,7 +435,7 @@ instance Semiring Prob where
   {-# INLINE one #-}
   one = Prob 1.0
 
--- XxxWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
+-- MinPlusWithRoute と MaxPlusWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
 -- 左側優先:
 --   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
 --   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
@@ -450,6 +443,8 @@ instance Semiring Prob where
 --   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
 --   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
 
+-- | 最小化問題用の経路復元付きラッパー
+-- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
 data MinPlusWithRoute s p = MinPlusWithRoute !s [p]
   deriving (Show, Eq)
 
@@ -490,53 +485,6 @@ instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
   {-# INLINE one #-}
   one = MaxPlusWithRoute one []
 
--- | 到達可能性判定（Boolean）における経路復元付き型
-data BooleanWithRoute p = BooleanWithRoute !Bool (JoinList p)
-  deriving (Show, Eq)
-
-instance Semiring (BooleanWithRoute p) where
-  -- 左側が到達可能(True)なら即採用（左側優先）
-  -- 左がダメで右が到達可能なら右を採用。両方ダメならFalse
-  {-# INLINE (<+>) #-}
-  lhs@(BooleanWithRoute True _) <+> _ = lhs
-  _ <+> rhs = rhs
-
-  -- 両方が到達可能(True)な場合のみ、経路を連結して True とする
-  -- どちらかが False なら、結果も False (zero) になる
-  {-# INLINE (<.>) #-}
-  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 <> r2)
-  _ <.> _ = zero
-
-  -- \| 到達不能（False）
-  {-# INLINE zero #-}
-  zero = BooleanWithRoute False Empty
-
-  -- \| 到達可能（True, 経路なし）
-  {-# INLINE one #-}
-  one = BooleanWithRoute True Empty
-
--- | 結合がO(1)のデータ構造。ListにするのはO(N)
-data JoinList a
-  = Empty
-  | Single !a
-  | Append (JoinList a) (JoinList a)
-  deriving (Show, Eq)
-
-instance Semigroup (JoinList a) where
-  Empty <> b = b
-  a <> Empty = a
-  a <> b = Append a b
-
-instance Monoid (JoinList a) where
-  mempty = Empty
-
-toList :: JoinList a -> [a]
-toList jl = go jl []
-  where
-    go Empty acc = acc
-    go (Single x) acc = x : acc
-    go (Append l r) acc = go l (go r acc)
-
 data DPProblem p sc = DPProblem
   { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序
     getRange :: (p, p), -- 状態 p のとりうる範囲（メモ化テーブルのサイズ用）
@@ -553,20 +501,21 @@ data DPProblem p sc = DPProblem
 -- solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dp (as, bs, n)
 
 {-# INLINE dpSolve #-}
-dpSolve :: forall i sc s. (Semiring sc, Ix i) => DPProblem i sc -> ST s sc
+dpSolve :: forall i sc s. (Semiring sc, Ix i, Eq sc) => DPProblem i sc -> ST s sc
 dpSolve dp = do
-  memo <- newArray (getRange dp) Nothing :: ST s (STArray s i (Maybe sc))
+  memo <- newArray (getRange dp) zero :: ST s (STArray s i sc)
   go (start dp) memo
   where
     go p memo
       | Just val <- isTrivial dp p = return val
       | otherwise = do
           res <- readArray memo p
-          case res of
-            Just val -> return val
-            Nothing -> do
+          if res /= zero
+            then return res
+            else do
               ret <- foldM (\acc (s, sp) -> (<+>) acc . (<.>) s <$> go sp memo) zero (subproblems dp p)
-              writeArray memo p (Just ret)
+              writeArray memo p ret
               return ret
 
 {- End Bonsai -}
+

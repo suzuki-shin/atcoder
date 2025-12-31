@@ -15,6 +15,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 module Main where

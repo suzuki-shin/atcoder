@@ -14,6 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module Main where
 
@@ -67,27 +68,17 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, s, as) =
-  let asA = listArray (1,n) as
-      res = unBoolean $ runST $ dpSolve $ dpA18 (asA, n, s)
-  in yn res
-
--- https://zenn.dev/osushi0x/articles/198bce676e2841
-dpA18 :: (Array Int Int, Int, Int) -> DPProblem (Int, Int) Boolean
-dpA18 (as, n, k) = DPProblem {
-  start = (n, k),
-  getRange = ((0,0), (n,k)),
-  isTrivial = \(i,j) ->
-    if  i == 0 then
-      if j == 0 then Just (Boolean True)
-      else Just (Boolean False)
-    else if j == 0 then Just (Boolean True)
-    else if j < 0 then Just (Boolean False)
-    else Nothing,
-  subproblems = \(i,j) ->
-    [(Boolean True, (i - 1, j - as ! i)),
-     (Boolean True, (i - 1, j))]
-}
+solve (n, s, as) = yn $ IS.member s dp
+  where
+    initSet = IS.singleton 0
+    dp :: IS.IntSet
+    dp = foldl' step initSet as
+    step :: IS.IntSet -> Int -> IS.IntSet
+    step currentSet a = nextSet
+      where
+        addedSet = IS.map (+ a) currentSet
+        mergedSet = IS.union currentSet addedSet
+        nextSet = IS.filter (<= s) mergedSet
 
 
 

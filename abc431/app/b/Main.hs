@@ -69,12 +69,13 @@ debug = False
 {-# INLINE solve #-}
 solve :: Solver
 solve (x, n, ws, q, ps) =
-  tail $ map fst $ scanl' f (x, []) ps
+  tail $ map fst $ scanl' f (x, IS.empty) ps
     where
-      f :: (Int, [Int]) -> Int -> (Int, [Int])
-      f (weight, parts) p = if p `elem` parts
-        then (weight - (ws !! (p-1)), filter (/=p) parts) -- はずす
-        else (weight + (ws !! (p-1)), p:parts)
+      wv = VU.fromList ws
+      f :: (Int, IS.IntSet) -> Int -> (Int, IS.IntSet)
+      f (weight, parts) p
+        | p `IS.member` parts = (weight - (wv VG.! (p-1)), IS.delete p parts) -- はずす
+        | otherwise           = (weight + (wv VG.! (p-1)), IS.insert p parts) -- つける
 
 
 {-# INLINE decode #-}

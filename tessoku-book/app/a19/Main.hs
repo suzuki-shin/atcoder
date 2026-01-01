@@ -66,31 +66,48 @@ type Codom = Int
 type Solver = Dom -> Codom
 
 debug :: Bool
-debug = False
+debug = True
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n', maxW', wvs) = unMaxPlus $ runST $ dpSolve $ dp (wvsA, n', maxW')
+solve x@(n, maxW, wvs) = trace (show x)
+  VU.maximum values
   where
-     wvsA :: Array Int (Int, Int)
-     wvsA = listArray (1,n') wvs
-     dp :: (Array Int (Int, Int), Int, Int) -> DPProblem (Int, Int) MaxPlus
-     dp (as, n, maxW) = DPProblem
-        { start = (maxW, n),
-          getRange = ((0,0), (maxW, n)),
-          isTrivial = \(currentCapacity, i) ->
-            (if i == 0 || currentCapacity == 0 -- 重さ0のアイテムはないので　currentCapacity == 0も終了
-               then Just $ MaxPlus 0
-               else Nothing),
-          subproblems = \(currentCapacity, i) ->
-            let (wi, vi) = as ! i
-            in if currentCapacity >= wi
-                then [
-                  (MaxPlus vi, (currentCapacity - wi, i-1)) -- 入れる
-                , (MaxPlus 0, (currentCapacity, i-1)) --入れない
-                ]
-                else [(MaxPlus 0, (currentCapacity, i-1))] -- 入らない
-        }
+    -- 初期状態: 重さ0の価値は0。それ以外は到達不可能としてminBound
+    initVec :: VU.Vector Int
+    initVec = VU.replicate (maxW+1) minBound VU.// [(0,0)] -- [0,minBound,minBound..(インデックスがmaxW+1まで)]
+    -- 添字(重さ）、値(価値)
+    values :: VU.Vector Int
+    values = foldl' step initVec wvs
+    step prevVec (w, v) = VU.generate (maxW+1) $ \j -> -- j: 現在計算しようとしているナップサックの容量（重さ上限）
+      let
+        notChoose = prevVec VU.! j -- この品物を選ばない場合、前の状態の価値そのまま
+        choose -- この品物を選ぶ
+          | j < w = minBound
+          | otherwise = if prevVec VU.! (j-w) == minBound
+              then minBound
+              else prevVec VU.! (j-w) + v
+      in max notChoose choose
+
+{-
+
+foldl' step initVec wvs
+-> [(initVec) `step` (w1,v1), ... ]
+-> [[0,minBound,minBound,..] `step` (w1,v1), ...]
+--->
+   j=0のとき notChoose = 0,        choose = minBound -> max 0 minBound -> 0
+   ...
+   j=w1のとき notChoose = minBound, choose = 0 + v1 -> max minBound v1 -> v1
+   ...
+   j=w2のとき notChoose = minBound, choose = 0 + v2                    -> v2
+-> [[0,minBound,minBound,v1,minBound,,,v2,], [0,,v1,,v2,,] `step` (w2,v2),,,]
+-> 
+
+
+
+
+ -}
+
 
 
 {-# INLINE decode #-}

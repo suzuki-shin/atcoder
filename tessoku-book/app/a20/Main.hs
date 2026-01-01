@@ -55,15 +55,13 @@ import Debug.Trace qualified as Debug
 import Text.Printf
 
 debug :: Bool
-debug = True
+debug = False
 
 type I = String
--- type I = B.ByteString
 
 type O = Int
 
 type Dom = (String, String)
--- type Dom = (B.ByteString, B.ByteString)
 
 type Codom = Int
 
@@ -71,7 +69,7 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (s,t) = trace (show row)
+solve (s,t) =
   VU.maximum row
   where
     s' = VU.fromList s

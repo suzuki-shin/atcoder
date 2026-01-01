@@ -72,23 +72,25 @@ type Solver = Dom -> Codom
 {-# INLINE solve #-}
 solve :: Solver
 solve (s,t) = trace (show row)
-  maximum row
+  VU.maximum row
   where
-    lenT = length t
-    row :: [Int]
-    row = foldl' step row0 s
-    row0 :: [Int]
-    row0 = replicate (lenT + 1) 0
-    step :: [Int] -> Char -> [Int]
+    s' = VU.fromList s
+    t' = VU.fromList t
+    lenT = vLength t'
+    row :: VU.Vector Int
+    row = VU.foldl' step row0 s'
+    row0 :: VU.Vector Int
+    row0 = VU.replicate (lenT + 1) 0
+    step :: VU.Vector Int -> Char -> VU.Vector Int
     step preRow charS = currentRow
       where
         -- currentRow[j] は Tのj文字目まで考慮したLCS長
-        currentRow = 0 : [f j| j <- [1..lenT]]
-        f j =
-          let charT = t !! (j-1)
+        currentRow = VU.fromList $ scanl' f 0 [1..lenT]
+        f valLeft j =
+          let charT = t' VG.! (j-1)
           in if charS == charT
-            then (preRow !! (j-1)) + 1
-            else max (preRow !! j) (currentRow !! (j-1))
+            then (preRow VG.! (j-1)) + 1
+            else max (preRow VG.! j) valLeft
 
 {-
 step は一つ前の状態(テーブルのi-1行目)をとって、今の状態(テーブルのi行目)を返す
@@ -110,10 +112,10 @@ i --------------
 -> row2 = step row1 2 = [0,0,0,1,1,2]
 
 row1[0] = row0[0]
-row1[1] = row0[1] + if s[1] == t[1] then 1 else 0
-row1[j] = row0[j] + if s[j] == t[j] then 1 else 0
+row1[1] = row0[0] + if s[1] == t[1] then 1 else 0
+row1[j] = row0[j-1] + if s[j] == t[j] then 1 else 0
 ...
-rowi[j] = row(i-1)[j] + if s[j] = t[j] then 1 else 0
+rowi[j] = row(i-1)[j-1] + if s[j] = t[j] then 1 else 0
 -}
 
 {-# INLINE decode #-}

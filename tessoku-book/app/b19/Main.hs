@@ -85,12 +85,12 @@ solve (n, maxW, wvs) =
           f v' =
             let v0 = v' - v -- この品物を入れる前の価値
                 w1 = case compare v0 0 of
-                  LT -> maxBound @Int -- v' < v　なので、この品物だけで価値オーバー
-                  EQ -> w             -- ちょうどこの品物だけで価値 v'
-                  GT ->               -- 前の状態からの遷移
+                  LT -> maxBound -- v' < v　なので、この品物だけで価値オーバー
+                  EQ -> w        -- ちょうどこの品物だけで価値 v'
+                  GT ->          -- 前の状態からの遷移
                     let w' = prevVec VU.! v0
                     in if w' == maxBound then maxBound else w + w'
-                w2 = prevVec VU.! v'
+                w2 = prevVec VU.! v' -- 品物を選ばない場合
              in min w1 w2
   in VU.maximum . VU.map fst . VU.filter (inRange (1, maxW) . snd) $ VU.indexed dp
 

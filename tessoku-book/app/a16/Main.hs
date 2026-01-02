@@ -66,6 +66,7 @@ debug :: Bool
 debug = False
 
 {-# INLINE solve #-}
+{-
 solve :: Solver
 solve (n, as, bs) = dp VG.! n
   where
@@ -78,6 +79,17 @@ solve (n, as, bs) = dp VG.! n
       in if | i <= 1 -> 0
             | i == 2 -> av VG.! 2
             | otherwise -> min (v VG.! (i-1) + av VG.! i) (v VG.! (i-2) + bv VG.! i)
+-}
+
+solve :: Solver
+solve (_,as@(a0:_),bs) = snd $ foldl' step (unReach,0) $ zip3 [1..] (0:as) (0:0:bs)
+  where
+    unReach :: Int
+    unReach = maxBound `div` 2
+    step :: (Int, Int) -> (Int, Int, Int) -> (Int, Int)
+    step _ (1, _, _) = (0, 0)
+    step _ (2, _, _) = (0, a0)
+    step (pre2Cost, pre1Cost) (_, a, b) = (pre1Cost, min (pre1Cost + a) (pre2Cost + b))
 
 
 {-# INLINE decode #-}

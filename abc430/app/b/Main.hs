@@ -16,6 +16,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Main where
 
@@ -54,33 +55,39 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
-type I = Int
+type I = Char
 
 type O = Int
 
-type Dom = (Int, [Int])
-
+type Dom   = (Int, Int, [[Char]])
 type Codom = Int
 
 type Solver = Dom -> Codom
 
+debug :: Bool
+debug = False
+
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n, m, snn) =
+  S.size . S.fromList $ [x i j | i <- [0 .. (n - m)], j <- [0 .. (n - m)]]
+  where
+    subList :: (Int, Int) -> [a] -> [a]
+    subList (start, end) as = take (end - start + 1) $ drop start as
+    x i j = subList (j, j + m - 1) $ map (subList (i, i + m - 1)) snn
+
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  nm:grid ->
+    let [n, m] = map (read @Int) $ words nm
+    in (n, m, grid)
+  _x -> trace (show _x) invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
 encode r = [[r]]
-
 -- encode = map (:[])
 
 main :: IO ()
@@ -95,7 +102,6 @@ main = B.interact (detokenize . encode . solve . decode . entokenize)
 --          S_{H,1}...S_{H,W}
 type I = Char
 type Dom = (Int, Int, [[Char]])
-decode :: [[I]] -> Dom
 decode = \case
   nm : grid ->
     let [n, m] = map (read @Int) $ words nm

@@ -54,33 +54,32 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
 type I = Int
 
-type O = Int
+type O = Char
 
-type Dom = (Int, [Int])
-
-type Codom = Int
+type Dom   = (Int, Int, Int, Int)
+type Codom = String
 
 type Solver = Dom -> Codom
 
+debug :: Bool
+debug = False
+
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (a,b,c,d) =
+   yn $ c >= a && d < b
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [a,b,c,d] : _ -> (a,b,c,d)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
-
+encode r = [r]
 -- encode = map (:[])
 
 main :: IO ()
@@ -95,12 +94,11 @@ main = B.interact (detokenize . encode . solve . decode . entokenize)
 --          S_{H,1}...S_{H,W}
 type I = Char
 type Dom = (Int, Int, [[Char]])
-decode :: [[I]] -> Dom
 decode = \case
-  nm : grid ->
-    let [n, m] = map (read @Int) $ words nm
-     in (n, m, grid)
-  _x -> trace (show _x) invalid $ "toDom: " ++ show @Int __LINE__
+    hw:grid ->
+        let [h, w] = map digitToInt hw
+        in (h, w, grid)
+    _ -> invalid $ "decode: " ++ show @Int __LINE__
 
 -- Pattern: Int & String
 -- Input: 5

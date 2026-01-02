@@ -54,6 +54,7 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
+import Data.List.Extra
 
 type I = Char
 
@@ -70,11 +71,11 @@ debug = False
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, m, snn) =
-  S.size . S.fromList $ [x i j | i <- [0 .. (n - m)], j <- [0 .. (n - m)]]
+  S.size $ S.fromList [elems $ subAry (r, c) | r <- [1 .. (n - m + 1)], c <- [1 .. (n - m + 1)]]
   where
-    subList :: (Int, Int) -> [a] -> [a]
-    subList (start, end) as = take (end - start + 1) $ drop start as
-    x i j = subList (j, j + m - 1) $ map (subList (i, i + m - 1)) snn
+    ary = listArray @UArray ((1,1),(n,n)) $ concat snn
+    subAry (r,c) = ixmap ((r,c),(r+m-1,c+m-1)) id ary
+
 
 
 {-# INLINE decode #-}
@@ -530,5 +531,23 @@ dpSolve dp = do
               writeArray memo p ret
               writeArray visited p True
               return ret
+
+-- | 2次元配列から矩形領域を切り出し、インデックスを (0,0) 起点にリベースする
+subArray2Rebased :: (IArray a e) => ((Int, Int), (Int, Int)) -> a (Int, Int) e -> a (Int, Int) e
+subArray2Rebased ((r1, c1), (r2, c2)) = ixmap ((0, 0), (r2 - r1, c2 - c1)) (\(r, c) -> (r + r1, c + c1))
+
+-- | 汎用版: 要素を show してスペース区切りで表示
+printArray :: (IArray UArray a, Show a) => UArray (Int, Int) a -> IO ()
+printArray ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn $ unwords [show (ary ! (r, c)) | c <- [minC .. maxC]]
+
+-- | Char専用版: 文字をそのまま連結してグリッド表示
+printArrayChar :: UArray (Int, Int) Char -> IO ()
+printArrayChar ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn [ary ! (r, c) | c <- [minC .. maxC]]
 
 {- End Bonsai -}

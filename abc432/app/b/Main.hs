@@ -550,7 +550,8 @@ printArrayChar ary = do
 -- [0]
 -- >>> toDigits (-123)
 -- [1,2,3]
-toDigits :: Int -> [Int]
+{-# INLINE toDigits #-}
+toDigits :: (Integral a) => a -> [a]
 toDigits 0 = [0]
 toDigits n = reverse $ go (abs n)
   where
@@ -560,9 +561,8 @@ toDigits n = reverse $ go (abs n)
 -- | 桁リストを整数に復元する
 -- >>> fromDigits [1,2,3,4]
 -- 1234
--- >>> fromDigits [0,1,2,3]
--- 123
-fromDigits :: [Int] -> Int
+{-# INLINE fromDigits #-}
+fromDigits :: (Integral a) => [a] -> a
 fromDigits = foldl' (\acc d -> acc * 10 + d) 0
 
 {- End Bonsai -}

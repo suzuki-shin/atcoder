@@ -83,21 +83,20 @@ solve (n, pas) = maximum [dp ! (i,i) | i <- [1..n]]
     -- 状態遷移の記述
     compute l r
       | l == 1 && r == n = 0 -- 初期状態
+      | l == 1 = rightScore
+      | r == n = leftScore
       | otherwise = max leftScore rightScore
       where
+        bonus i = if l <= fst (paAry ! i) && fst (paAry ! i) <= r then snd (paAry ! i) else 0
         -- 左端(l-1)を取り除いて今の状態(l,r)になった場合
         leftScore =
           if l > 1
-          then let (p,a) = paAry ! (l-1)
-                   bonus = if l <= p && p <= r then a else 0
-               in (dp ! (l-1, r)) + bonus
+          then (dp ! (l-1, r)) + bonus (l-1)
           else unreach
         -- 右端(r+1)を取り除いて今の状態(l,r)担った場合
         rightScore =
           if r < n
-          then let (p,a) = paAry ! (r+1)
-                   bonus = if l <= p && p <= r then a else 0
-               in (dp ! (l, r+1)) + bonus
+          then (dp ! (l, r+1)) + bonus (r+1)
           else unreach
 
 {-# INLINE decode #-}

@@ -56,12 +56,12 @@ import Debug.Trace qualified as Debug
 import Text.Printf
 import Language.Haskell.TH (Lit(IntegerL))
 
-type I = Integer
+type I = Int
 
-type O = Integer
+type O = Int
 
-type Dom   = Integer
-type Codom = (Integer, [Integer])
+type Dom   = Int
+type Codom = (Int, [Int])
 
 type Solver = Dom -> Codom
 
@@ -70,31 +70,28 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve n = (toInteger (length as), as)
+solve n = (vLength res, VU.toList res)
   where
-    -- rootX :: Int -> Int
-    rootX x = ceiling (sqrt (fromIntegral x))
-    -- f :: Int -> [(Int, Int)]
-    f m =
-      [(x, ceiling y')|
-        x <- [1..rootX m],
-        let y' = sqrt $ fromIntegral (m - x^2),
-        floor y' == ceiling y',
-        y' > 0,
-        x < ceiling y'
-        ]
-    as = [m | m <- [1 .. n], length (f m) == 1]
-    -- lenAs = toInteger $ length as
+    sq = VU.drop 1 . VU.takeWhile (<= n) . VU.generate n $ \i -> i * i
+    as = [a |
+      i <- [0..(VU.length sq - 1)],
+      j <- [(i+1)..(VU.length sq - 1)],
+      let a = sq VG.! i + sq VG.! j,
+      a <= n]
+    res = VU.map snd . VU.filter ((== 1) . fst) .
+          VU.fromList . map (\v -> (VU.length v, VU.head v)) .
+          VU.group . VU.modify VAI.sort $
+          VU.fromList as
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
   [n] : _ -> n
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  _ -> invalid $ "toDom: " ++ show @Int 97
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode (k,as) = [[toInteger k],as]
+encode (k,as) = [[k],as]
 -- encode = map (:[])
 
 main :: IO ()
@@ -113,7 +110,7 @@ decode = \case
   nm : grid ->
     let [n, m] = map (read @Int) $ words nm
      in (n, m, grid)
-  _x -> invalid $ "toDom: " ++ show @Int __LINE__
+  _x -> invalid $ "toDom: " ++ show @Int 120
 -- Pattern: Int & String
 -- Input: 5
 --        WEEWW
@@ -122,7 +119,7 @@ type Dom (Int, String)
 decode :: [[I]] -> Dom
 decode = \ case
     n:as:_ -> (read n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+    _   -> invalid $ "toDom: " ++ show @Int 129
 -}
 {- Encode Pattern -}
 {-
@@ -578,3 +575,4 @@ fromDigits :: (Integral a) => [a] -> a
 fromDigits = foldl' (\acc d -> acc * 10 + d) 0
 
 {- End Bonsai -}
+

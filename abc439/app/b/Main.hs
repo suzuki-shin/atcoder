@@ -21,7 +21,7 @@ module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
-import Control.Arrow hiding ((<+>))
+import Control.Arrow hiding ((<+>), loop)
 import Control.Arrow qualified as Arrow
 import Control.Monad
 import Control.Monad.ST (ST, runST)
@@ -69,12 +69,18 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve n = yn $ 10^4 /= length (take (10^4) $ g n)
+solve n = yn $ g n
   where
-    f m = sum $ map (^ 2) $ toDigits m
-    g = unfoldr (\a -> if f a == 1 then Nothing else Just (a, f a))
-
-
+    g :: Int -> Bool
+    g = loop IS.empty
+      where
+        loop is k
+          | k == 1 = True
+          | IS.member k is = False
+          | otherwise = loop is1 k1
+            where
+              is1 = IS.insert k is
+              k1 = sum $ map (^2) $ toDigits k
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

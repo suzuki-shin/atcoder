@@ -70,7 +70,7 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve n = chunksOf n $ map snd $ sort $ VU.toList $ VU.zip rcv (VU.fromList (take(n^2) [(1::Int)..]))
+solve n = chunksOf n $ VU.toList $ VU.map snd $ VU.modify VAI.sort $ VU.zip rcv (VU.fromList (take (n ^ 2) [(1 :: Int) ..]))
   where
     rcv = VU.constructN (n^(2::Integer)) $ \v ->
       let i = vLength v

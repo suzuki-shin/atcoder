@@ -66,33 +66,28 @@ type Codom = [[Int]]
 type Solver = Dom -> Codom
 
 debug :: Bool
-debug = True
+debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve n = chunksOf n $ map snd $ reverse $ sort $ zip (loop [(0, (n-1) `div` 2)]) [1..]
+solve n = chunksOf n $ map snd $ sort $ VU.toList $ VU.zip rcv (VU.fromList (take(n^2) [(1::Int)..]))
   where
-    r0 = 0
-    c0 = (n - 1) `div` 2
-    loop :: [(Int,Int)] -> [(Int,Int)]
-    loop s
-      | length s == n^2 = s
-      | otherwise = loop s1
-        where
-          (r,c) = head s
-          r1 = (r - 1) `mod` n
-          c1 = (c+1) `mod` n
-          r1' = (r + 1) `mod` n
-          c1' = c
-          k1 = if (r1,c1) `elem` s then (r1',c1') else (r1,c1)
-          s1 = k1 : s
+    rcv = VU.constructN (n^(2::Integer)) $ \v ->
+      let i = vLength v
+      in (if i == 0 then (0, (n-1) `div` 2) else (let
+                                                    (r,c) = v VG.! (i-1)
+                                                    r1 = (r-1) `mod` n
+                                                    c1 = (c+1) `mod` n
+                                                    r1' = (r+1) `mod` n
+                                                    c1' = c
+                                                  in if VU.elem (r1,c1) v then (r1',c1') else (r1,c1)))
 
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
   [n] : _ -> n
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  _ -> invalid $ "toDom: " ++ show @Int 95
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
@@ -115,7 +110,7 @@ decode = \case
   nm : grid ->
     let [n, m] = map (read @Int) $ words nm
      in (n, m, grid)
-  _x -> invalid $ "toDom: " ++ show @Int __LINE__
+  _x -> invalid $ "toDom: " ++ show @Int 118
 -- Pattern: Int & String
 -- Input: 5
 --        WEEWW
@@ -124,7 +119,7 @@ type Dom (Int, String)
 decode :: [[I]] -> Dom
 decode = \ case
     n:as:_ -> (read n, as)
-    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+    _   -> invalid $ "toDom: " ++ show @Int 127
 -}
 {- Encode Pattern -}
 {-
@@ -580,3 +575,5 @@ fromDigits :: (Integral a) => [a] -> a
 fromDigits = foldl' (\acc d -> acc * 10 + d) 0
 
 {- End Bonsai -}
+
+

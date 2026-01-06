@@ -69,12 +69,10 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,m,xs) = map (\(w, cnt) -> fromIntegral w / fromIntegral cnt) $ elems hoge
+solve (n,m,xs) = map (\(w, cnt) -> fromIntegral w / fromIntegral cnt) $ elems sumAndCount
   where
-    f :: (Int, Int) -> Int -> (Int, Int)
-    f (accW, accN) w = (accW + fromIntegral w, accN + 1)
-    hoge :: Array Int (Int, Int)
-    hoge = accumArray f (0, 0) (1, m) $ map (\[a, b] -> (a, b)) xs
+    sumAndCount :: Array Int (Int, Int)
+    sumAndCount = accumArray (\(w,c) b -> (w + b, c + 1)) (0, 0) (1, m) $ map (\[a, b] -> (a, b)) xs
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

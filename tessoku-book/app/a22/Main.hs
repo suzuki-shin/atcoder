@@ -16,7 +16,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Main where
 
@@ -28,8 +27,8 @@ import Control.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
-import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray)
-import Data.Array.ST (STArray, STUArray, runSTArray, runSTUArray)
+import Data.Array.MArray (newArray, newArray_, readArray, writeArray)
+import Data.Array.ST (STArray, STUArray, runSTArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
 import Data.Bits
@@ -37,12 +36,11 @@ import Data.Bool
 import Data.ByteString.Char8 qualified as B
 import Data.Char
 import Data.Function
-import Data.HashMap.Strict qualified as HM
-import Data.IntMap.Strict qualified as IM
+import Data.IntMap qualified as IM
 import Data.IntSet qualified as IS
 import Data.Ix
 import Data.List
-import Data.Map.Strict qualified as M
+import Data.Map qualified as M
 import Data.Maybe
 import Data.Ord
 import Data.Sequence qualified as Q
@@ -71,25 +69,31 @@ type Solver = Dom -> Codom
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,a:as,bs) = f ! n
-  -- STUArrayによる配るDP版
+solve (n,as,bs) = f
   where
-    av = VU.fromList (0:a:as)
-    bv = VU.fromList (0:0:bs)
-    unreach = maxBound `div` 2 :: Int
-    f = runSTUArray $ do
-      dp <- newSTUArray (1,n) unreach
+    av = VU.fromList as
+    bv = VU.fromList bs
+    unreach = minBound `div` 2 :: Int
+    f = runST $ do
+      dp <- newArray (1,n) unreach :: ST s (STUArray s Int Int)
       writeArray dp 1 0
-      writeArray dp 2 a
 
-      forM_ [3 .. n] $ \i -> do
-        dpm1 <- readArray dp (i-1)
-        dpm2 <- readArray dp (i-2)
+      forM_ [1 .. (n-1)] $ \i -> do
+        curr <- readArray dp i
         let (ai, bi) = (av VG.! (i-1), bv VG.! (i-1))
-        writeArray dp i (min (dpm2 + bi) (dpm1 + ai))
+        scoreA <- readArray dp ai
+        writeArray dp ai (max scoreA (curr + 100))
+        scoreB <- readArray dp bi
+        writeArray dp bi (max scoreB (curr + 150))
 
-      return dp
-      -- readArray dp n
+      readArray dp n
+
+
+{-
+求めたい dp[N] の値は以下のようにして計算できる
+- dp[Ai] の値を max(dp[Ai], dp[i] + 100) に更新する
+- dp[Bi] の値を max(dp[Bi], dp[i] + 150) に更新する
+-}
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -544,12 +548,5 @@ dpSolve dp = do
               writeArray memo p ret
               writeArray visited p True
               return ret
-
-{- STUArray -}
-asSTU :: ST s (STUArray s i e) -> ST s (STUArray s i e)
-asSTU = id
-
-newSTUArray :: (MArray (STUArray s) e (ST s), Ix i) => (i, i) -> e -> ST s (STUArray s i e)
-newSTUArray b v = asSTU $ newArray b v
 
 {- End Bonsai -}

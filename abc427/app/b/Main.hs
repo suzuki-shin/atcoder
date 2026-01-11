@@ -70,14 +70,14 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve n = a n
+solve n = iterate step 1 !! (n-1)
   where
     f :: Int -> Int
     f = sum . toDigits
-
-    a 0 = 1
-    a 1 = 1
-    a i = a (i-1) + f (a (i-1))
+    step x = x + f x
+    -- a 0 = 1
+    -- a 1 = 1
+    -- a i = a (i-1) + f (a (i-1))
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

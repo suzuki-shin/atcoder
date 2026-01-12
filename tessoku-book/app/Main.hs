@@ -15,6 +15,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
+
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 module Main where
@@ -27,8 +28,8 @@ import Control.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
-import Data.Array.MArray (newArray_, readArray, writeArray)
-import Data.Array.ST (STArray, STUArray, newArray, runSTArray)
+import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray)
+import Data.Array.ST (STArray, STUArray, runSTArray, runSTUArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
 import Data.Bits
@@ -36,11 +37,13 @@ import Data.Bool
 import Data.ByteString.Char8 qualified as B
 import Data.Char
 import Data.Function
-import Data.IntMap qualified as IM
+import Data.HashMap.Strict qualified as HM
+import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
 import Data.Ix
 import Data.List
-import Data.Map qualified as M
+import Data.List.Extra
+import Data.Map.Strict qualified as M
 import Data.Maybe
 import Data.Ord
 import Data.Sequence qualified as Q
@@ -54,9 +57,6 @@ import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
 
-debug :: Bool
-debug = False
-
 type I = Int
 
 type O = Int
@@ -66,6 +66,9 @@ type Dom = (Int, [Int])
 type Codom = Int
 
 type Solver = Dom -> Codom
+
+debug :: Bool
+debug = True
 
 {-# INLINE solve #-}
 solve :: Solver
@@ -95,13 +98,11 @@ main = B.interact (detokenize . encode . solve . decode . entokenize)
 --          S_{H,1}...S_{H,W}
 type I = Char
 type Dom = (Int, Int, [[Char]])
-decode :: [[I]] -> Dom
 decode = \case
   nm : grid ->
     let [n, m] = map (read @Int) $ words nm
      in (n, m, grid)
-  _x -> trace (show _x) invalid $ "toDom: " ++ show @Int __LINE__
-
+  _x -> invalid $ "toDom: " ++ show @Int __LINE__
 -- Pattern: Int & String
 -- Input: 5
 --        WEEWW
@@ -524,5 +525,66 @@ dpSolve dp = do
               writeArray memo p ret
               writeArray visited p True
               return ret
+
+-- | 2次元配列から矩形領域を切り出し、インデックスを (0,0) 起点にリベースする
+subArray2Rebased :: (IArray a e) => ((Int, Int), (Int, Int)) -> a (Int, Int) e -> a (Int, Int) e
+subArray2Rebased ((r1, c1), (r2, c2)) = ixmap ((0, 0), (r2 - r1, c2 - c1)) (\(r, c) -> (r + r1, c + c1))
+
+-- | 汎用版: 要素を show してスペース区切りで表示
+printArray :: (IArray UArray a, Show a) => UArray (Int, Int) a -> IO ()
+printArray ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn $ unwords [show (ary ! (r, c)) | c <- [minC .. maxC]]
+
+-- | Char専用版: 文字をそのまま連結してグリッド表示
+printArrayChar :: UArray (Int, Int) Char -> IO ()
+printArrayChar ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn [ary ! (r, c) | c <- [minC .. maxC]]
+
+-- | 整数を10進数の桁リストを返す。負の数は絶対値の桁リストを返す
+-- >>> toDigits 1234
+-- [1,2,3,4]
+-- >>> toDigits 0
+-- [0]
+-- >>> toDigits (-123)
+-- [1,2,3]
+{-# INLINE toDigits #-}
+toDigits :: (Integral a) => a -> [a]
+toDigits 0 = [0]
+toDigits n = reverse $ go (abs n)
+  where
+    go 0 = []
+    go x = let (q, r) = x `quotRem` 10 in r : go q
+
+-- | 桁リストを整数に復元する
+-- >>> fromDigits [1,2,3,4]
+-- 1234
+{-# INLINE fromDigits #-}
+fromDigits :: (Integral a) => [a] -> a
+fromDigits = foldl' (\acc d -> acc * 10 + d) 0
+
+{- STUArray -}
+asSTU :: ST s (STUArray s i e) -> ST s (STUArray s i e)
+asSTU = id
+
+newSTUArray :: (MArray (STUArray s) e (ST s), Ix i) => (i, i) -> e -> ST s (STUArray s i e)
+newSTUArray b v = asSTU $ newArray b v
+
+-- | 部分文字列の取得 0-indexed で開始位置を指定、指定した長さの部分文字列を返す
+-- >>> substring 0 5 "Hello, World"
+-- "Hello"
+{-# INLINE substring #-}
+substring :: Int -> Int -> String -> String
+substring start len = take len . drop start
+
+-- | s に含まれる長さ k の部分文字列をすべて返す　　０（NK)
+-- >>> substringsK 3 "TOYOTA"
+-- ["TOY","OYO","YOT","OTA"]
+{-# INLINE substringsK #-}
+substringsK :: Int -> String -> [String]
+substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
 
 {- End Bonsai -}

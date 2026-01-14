@@ -61,7 +61,7 @@ type I = Int
 type O = Char
 
 type Dom   = (Int, [Int])
-type Codom = (String, [Int])
+type Codom = (String, Maybe [Int])
 
 type Solver = Dom -> Codom
 
@@ -70,12 +70,12 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,as) = (yn $ maximum as' == 1, fromJust $ listToMaybe bs)
+solve (n,as) = (yn isValid, listToMaybe candidates)
   where
-    as' = map length $ group $ sort $ filter (/= (-1)) as
-    bs = filter f $ permutations [1..n]
-    f :: [Int] -> Bool
-    f xs = all (\(a,x) -> (a == -1) || (x == a)) (zip as xs)
+    fixed = filter (/= -1) as
+    isValid = null fixed || all ((== 1) . length) (group $ sort fixed)
+    candidates = filter ok $ permutations [1..n]
+    ok xs = all (\(a, x) -> a == -1 || a == x) $ zip as xs
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -86,7 +86,7 @@ decode = \case
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
 encode ("No", _) = ["No"]
-encode (s, ps) = s : [unwords $ map show ps]
+encode (s, ps) = s : [unwords $ map show $ fromJust ps]
 -- encode = map (:[])
 
 main :: IO ()
@@ -591,6 +591,7 @@ substringsK :: Int -> String -> [String]
 substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
 
 {- End Bonsai -}
+
 
 
 

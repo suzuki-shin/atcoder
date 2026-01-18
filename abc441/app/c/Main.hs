@@ -72,9 +72,9 @@ debug = False
 solve :: Solver
 solve (n, k, x, as) = f
   where
-    sortedAv = V.modify (VAI.sortBy (comparing Down)) $ V.fromList as
-    csum = V.scanl' (+) 0 $ V.drop (n - k) sortedAv -- 大きい方から (n - k)個は水
-    mIx = V.findIndex (>= x) csum
+    sortedAv = VU.modify (VAI.sortBy (comparing Down)) $ VU.fromList as
+    csum = VU.scanl' (+) 0 $ VU.drop (n - k) sortedAv -- 大きい方から (n - k)個は水
+    mIx = VU.findIndex (>= x) csum
     f = case mIx of
       Just ix -> if ix + (n - k) <= n then ix + (n - k) else -1
       Nothing -> -1

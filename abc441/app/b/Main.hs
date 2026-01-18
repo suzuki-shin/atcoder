@@ -71,7 +71,7 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,m,s,t,q,ws) = trace (show ws) map check ws
+solve (n,m,s,t,q,ws) = map check ws
   where
     takaS = S.fromList s
     aokiS = S.fromList t

@@ -70,16 +70,14 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve hoge@(n, k, x, as) = trace (show hoge) trace (show mIx) f
+solve (n, k, x, as) = f
   where
-    sortedAv = V.modify VAI.sort $ V.fromList as
-    csum = V.scanl' (+) 0 sortedAv
+    sortedAv = V.modify (VAI.sortBy (comparing Down)) $ V.fromList as
+    csum = V.scanl' (+) 0 $ V.drop (n - k) sortedAv -- 大きい方から (n - k)個は水
     mIx = V.findIndex (>= x) csum
     f = case mIx of
       Just ix -> if ix + (n - k) <= n then ix + (n - k) else -1
       Nothing -> -1
-
-
 
 
 {-# INLINE decode #-}

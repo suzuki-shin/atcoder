@@ -18,6 +18,7 @@
 
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Main where
 
@@ -73,22 +74,14 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, tas) = reverse res
+solve (n, tas) = tail res
   where
-    res = foldl' f [] tas'
-    tas' = map ((\ta -> (head ta, read (ta !! 1))) . words) tas
-    f :: [Int] -> (String, Int) -> [Int]
-    f acc@(x:_) ("+",a) = mod10000 (x + a) : acc
-    f acc@(x:_) ("*",a) = mod10000 (x * a) : acc
-    f acc@(x:_) ("-",a) = mod10000 (x - a) : acc
-    f [] ("+" ,a) = [a]
-    f [] ("*",a) = [0]
-    f [] ("-",a) = [-a]
-    mod10000 m = if m' < 0 then m' + 10000 else m'
-      where
-        m' = m `mod` 10000
-
-
+    res = scanl' f 0 tas'
+    tas' = map ((\[t,a] -> (t, read a)) . words) tas
+    f :: Int -> (String, Int) -> Int
+    f acc ("+", a) = mod (acc + a) 10000
+    f acc ("*", a) = mod (acc * a) 10000
+    f acc ("-", a) = mod (acc - a) 10000
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

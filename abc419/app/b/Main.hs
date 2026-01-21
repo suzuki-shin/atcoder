@@ -84,14 +84,17 @@ debug = False
 solve :: Solver
 solve qs = reverse $ snd res
   where
-    res = foldl' f ([],[]) qs
-    f :: ([Int], [Int]) -> String -> ([Int], [Int])
+    res = foldl' f (IM.empty,[]) qs
+    f :: (IM.IntMap Int, [Int]) -> String -> (IM.IntMap Int, [Int])
     f (bucket, result) "2" =
-      let target = minimum bucket
-      in (delete target bucket, target : result)
+      case IM.minViewWithKey bucket of
+        Just ((val, count), rest) ->
+          let newBucket = if count > 1 then IM.insert val (count-1) rest else rest
+          in (newBucket, val:result)
+        Nothing -> (bucket, result)
     f (bucket, result) query1 =
       let x = read @Int $ words query1 !! 1
-      in (x : bucket, result)
+      in (IM.insertWith (+) x 1 bucket, result)
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

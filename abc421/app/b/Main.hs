@@ -70,13 +70,10 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (x,y) = a 10
+solve (x,y) = as !! 9
   where
-    f = read @Int . reverse . show
-    a :: Int -> Int
-    a 1 = x
-    a 2 = y
-    a i = f (a (i-1) + a (i-2))
+    f am1 am2 = read . reverse . show $ am1 + am2
+    as = x : y : zipWith f as (tail as)
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom

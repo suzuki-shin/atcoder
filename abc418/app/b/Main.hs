@@ -83,14 +83,15 @@ debug = False
 solve :: Solver
 solve s = ans
   where
-    fillRate s'@(t:_)
-      | length s' >= 3 && t == last s' =
+    fillRate [] = 0
+    fillRate s'
+      | length s' >= 3 =
         let
-          x = (length . filter (==t)) s' in fromIntegral (x-2) / fromIntegral (length s' - 2)
+          x = (length . filter (== 't')) s' in fromIntegral (x - 2) / fromIntegral (length s' - 2)
       | otherwise = 0
     -- sの長さ3以上かつ先頭末尾が等しい部分文字列を全部返す
-    substr = concatMap (filter (\str -> head str == last str) . (`substringsK` s)) [3..length s]
-    ans = maximum $ map fillRate substr
+    substr = concatMap (filter (\str -> head str == 't' && last str == 't') . (`substringsK` s)) [3..length s]
+    ans = maximum $ 0 : map fillRate substr
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

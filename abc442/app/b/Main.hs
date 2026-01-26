@@ -83,13 +83,13 @@ debug = False
 solve :: Solver
 solve as = ans
   where
-    res = scanl' f (False, 0) as
+    !res = scanl' f (False, 0) as
     f :: (Bool, Int) -> Int -> (Bool, Int)
-    f (state, vol) 1 = (state, vol + 1)
-    f (state, vol) 2 = (state, max (vol - 1) 0)
-    f (state, vol) 3 = (not state, vol)
+    f (!state, !vol) 1 = (state, vol + 1)
+    f (!state, !vol) 2 = (state, max (vol - 1) 0)
+    f (!state, !vol) 3 = (not state, vol)
     f _ _ = impossible "f"
-    ans = map (\(state, vol) -> yn $ state && vol >= 3) $ tail res
+    !ans = map (\(state, vol) -> yn $ state && vol >= 3) $ tail res
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

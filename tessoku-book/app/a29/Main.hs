@@ -72,15 +72,7 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (a,b) = powMod a b (10^9+7)
-
-{-# INLINE powMod #-}
-powMod :: Int -> Int -> Int -> Int
-powMod a b m
-  | b == 0 = 1
-  | even b = powMod ((a * a) `mod` m) (b `div` 2) m
-  | otherwise = (a * powMod a (b - 1) m) `mod` m
-
+solve (a,b) = getVal $ ModInt a ^% b
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
@@ -594,5 +586,95 @@ substring start len = take len . drop start
 {-# INLINE substringsK #-}
 substringsK :: Int -> String -> [String]
 substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
+
+{- ModInt -}
+modBase :: Int
+-- modBase = 998244353
+modBase = 1000000007
+
+-- nCr 用の最大サイズ (2*10^5 が一般的)
+maxN :: Int
+maxN = 200000
+
+newtype ModInt = ModInt {getVal :: Int} deriving (Eq)
+
+instance Show ModInt where
+  show (ModInt a) = show a
+
+instance Num ModInt where
+  (ModInt a) + (ModInt b) = ModInt $ (a + b) `rem` modBase
+  (ModInt a) - (ModInt b) = ModInt $ (a - b + modBase) `rem` modBase
+  (ModInt a) * (ModInt b) = ModInt $ (a * b) `rem` modBase
+  fromInteger n = ModInt $ fromInteger (n `mod` fromIntegral modBase)
+  abs = id
+  signum _ = ModInt 1
+
+-- 割り算 (フェルマーの小定理により逆元を掛ける)
+instance Fractional ModInt where
+  recip (ModInt a) = ModInt $ powMod a (modBase - 2)
+  fromRational = error "No float conversion for ModInt"
+
+-- 累乗計算 (繰り返し二乗法) O(log n)
+{-# INLINE powMod #-}
+powMod :: Int -> Int -> Int
+powMod _ 0 = 1
+powMod a n
+  | even n = p2
+  | otherwise = (a * p2) `rem` modBase
+  where
+    p = powMod a (n `div` 2)
+    p2 = (p * p) `rem` modBase
+
+-- 累乗の演算子定義 (例: val ^% 10)
+infixr 8 ^%
+
+(^%) :: ModInt -> Int -> ModInt
+(ModInt a) ^% n = ModInt $ powMod a n
+{-# INLINE (^%) #-}
+
+-- =========================================================================
+--  Combinations (nCr) Library with Precomputation
+-- =========================================================================
+
+-- 階乗テーブル O(N)
+{-# INLINE factTable #-}
+factTable :: VU.Vector Int
+factTable = VU.scanl' (\acc x -> (acc * x) `rem` modBase) 1 (VU.fromList [1 .. maxN])
+
+-- 階乗の逆元テーブル O(N)
+-- 末尾の逆元を求めてから後ろ向きに累積積を取ることで高速化
+{-# INLINE invFactTable #-}
+invFactTable :: VU.Vector Int
+invFactTable = VU.scanr' (\x acc -> (acc * x) `rem` modBase) finalInv (VU.fromList [1 .. maxN])
+  where
+    finalInv = powMod (VU.last factTable) (modBase - 2)
+
+-- 組み合わせ計算 nCr O(1)
+{-# INLINE nCr #-}
+nCr :: Int -> Int -> ModInt
+nCr n r
+  | r < 0 || r > n = ModInt 0
+  | otherwise =
+      let n' = factTable VU.! n
+          r' = invFactTable VU.! r
+          nr' = invFactTable VU.! (n - r)
+       in ModInt $ n' * r' `rem` modBase * nr' `rem` modBase
+
+-- 順列計算 nPr O(1)
+{-# INLINE nPr #-}
+nPr :: Int -> Int -> ModInt
+nPr n r
+  | r < 0 || r > n = ModInt 0
+  | otherwise =
+      let n' = factTable VU.! n
+          nr' = invFactTable VU.! (n - r)
+       in ModInt $ n' * nr' `rem` modBase
+
+-- 重複組み合わせ nHr O(1)
+{-# INLINE nHr #-}
+nHr :: Int -> Int -> ModInt
+nHr n r
+  | n == 0 && r == 0 = ModInt 1
+  | otherwise = nCr (n + r - 1) r
 
 {- End Bonsai -}

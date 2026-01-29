@@ -15,6 +15,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 module Main where
@@ -55,8 +56,6 @@ import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
 import Debug.Trace qualified as Debug
 import Text.Printf
-import Data.Massiv.Array (Stream)
-import Text.Read (Lexeme(Char))
 
 type I = Char
 
@@ -629,6 +628,7 @@ maximumDef def' xs
   | null xs = def'
   | otherwise = maximum xs
 
+#if FALSE
 
 {- ModInt -}
 modBase :: Int
@@ -719,6 +719,8 @@ nHr :: Int -> Int -> ModInt
 nHr n r
   | n == 0 && r == 0 = ModInt 1
   | otherwise = nCr (n + r - 1) r
+
+#endif
 
 {- End Bonsai -}
 

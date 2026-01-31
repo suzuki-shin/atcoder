@@ -74,17 +74,17 @@ debug = True
 
 type I = Int
 
-type O = Int
+type O = String
 
-type Dom   = (Int, [Int])
-type Codom = Int
+type Dom   = (Int, Int, Int)
+type Codom = String
 
 type Solver = Dom -> Codom
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n, a, b] : _ -> (n, a, b)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
@@ -94,7 +94,18 @@ encode r = [[r]]
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n,a,b) = if dp VG.! n then "First" else "Second"
+  where
+    -- dp[i]: 石が残りi個のとき、その手番の人が勝てるならTrue
+    dp = VU.constructN (n+1) step
+    -- i番目の要素
+    step :: VU.Vector Bool -> Bool
+    step v = canWinByA || canWinByB
+      where
+        i = vLength v -- 現在計算しようとしている石の数
+        canWinByA = i >= a && not (v VU.! (i-a))
+        canWinByB = i >= b && not (v VU.! (i-b))
+
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

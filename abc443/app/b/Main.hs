@@ -83,7 +83,10 @@ debug = False
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, k) = fromJust $ findIndex (k <=) $ scanl1 (+) [n ..]
+solve (n,k) = ok
+  where
+    (_, ok) = bisect (-1) 100_000_000 isOk
+    isOk x = (x + 1) * (2 * n + x) `div` 2 >= k
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -624,3 +627,20 @@ maximumDef :: (Foldable t, Ord p) => p -> t p -> p
 maximumDef def' xs
   | null xs = def'
   | otherwise = maximum xs
+
+
+{-- bisect --}
+
+-- | 左が false / 右が true で境界を引く
+-- | ng, ok の大小関係を問わず、境界を探索する
+-- | ng, ok の大小関係を問わず、境界を探索する
+bisect :: (Integral a) => a -> a -> (a -> Bool) -> (a, a)
+bisect ng' ok' f = worker ng' ok'
+  where
+    worker ng ok
+      | abs (ok - ng) <= 1 = (ng, ok) -- 絶対値にすることでどちら向きでも停止する
+      | f m = worker ng m -- m が条件を満たす -> ok を更新
+      | otherwise = worker m ok -- m が条件を満たさない -> ng を更新
+      where
+        m = (ng + ok) `div` 2
+{-# INLINE bisect #-}

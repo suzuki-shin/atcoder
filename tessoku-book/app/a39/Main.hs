@@ -55,6 +55,7 @@ import Data.Vector.Algorithms.Intro qualified as VAI
 import Data.Vector.Fusion.Bundle qualified as VFB
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
+import Data.Vector.Unboxed.Mutable qualified as VUM
 import Debug.Trace qualified as Debug
 import Text.Printf
 
@@ -97,7 +98,7 @@ encode r = [[r]]
 solve :: Solver
 solve (n, lrs) = sum res
   where
-    (_, res) = mapAccumL f (minBound :: Int) $ sortOn snd $ map (\[l,r] -> (l,r)) lrs
+    (_, res) = mapAccumL f (minBound :: Int) $ sortOn' snd $ map (\[l,r] -> (l,r)) lrs
     f acc (l,r)
       | acc <= l = (r, 1)
       | otherwise = (acc, 0)
@@ -641,6 +642,20 @@ maximumDef :: (Foldable t, Ord p) => p -> t p -> p
 maximumDef def' xs
   | null xs = def'
   | otherwise = maximum xs
+
+{-# INLINE sort' #-}
+sort' :: (VUM.Unbox a, Ord a) => [a] -> [a]
+sort' xs = VU.toList $ VU.modify (VAI.sortBy compare) (VU.fromList xs)
+
+{-# INLINE sortBy' #-}
+sortBy' :: (VUM.Unbox a) => (a -> a -> Ordering) -> [a] -> [a]
+sortBy' f xs = VU.toList $ VU.modify (VAI.sortBy f) (VU.fromList xs)
+
+{-# INLINE sortOn' #-}
+sortOn' :: (VUM.Unbox a2, VUM.Unbox a1, Ord a2) => (a1 -> a2) -> [a1] -> [a1]
+sortOn' f =
+  VU.toList . VU.map snd . VU.modify (VAI.sortBy (comparing fst)) .
+  VU.map (\x -> let y = f x in y `seq` (y, x)) . VU.fromList
 
 {- ORMOLU_DISABLE -}
 #if FALSE

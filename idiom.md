@@ -99,7 +99,7 @@ ghci> printArray $ subArrayRebased ((1,1),(2,2)) arr
 8 9
 
 -- 連想配列をarrayにする
-ghci> aList 
+ghci> aList
 [((1,2),1),((2,2),2),((2,1),3),((1,1),4)]
 ghci> array ((1,1), (2,2)) aList  :: Array (Int, Int) Int
 array ((1,1),(2,2)) [((1,1),4),((1,2),1),((2,1),3),((2,2),2)]
@@ -107,6 +107,17 @@ array ((1,1),(2,2)) [((1,1),4),((1,2),1),((2,1),3),((2,2),2)]
 -- accumArrayで出現回数をカウントする（accumArrayはインデックスごとに畳み込む）
 ghci> accumArray (+) 0 ('a','e') [(x,1)| x <- "abbacadaba"] :: UArray Char Int
 array ('a','e') [('a',5),('b',3),('c',1),('d',1),('e',0)]
+
+{- グループごとの最大・最小（Max/Min per Bucket)
+用途： DP（動的計画法）の初期化や、グリッド上の特定の行・列における最大値を求める場合。「インデックス $i$ に対応する値の中で、最大のものはどれか？」を一括で計算します。蓄積関数: max または min配列型: UArray Int Int などコード例：「重さ $w$ の荷物の中で、最大の価値 $v$ を知りたい」という場合（ナップサック問題の前処理など）。データ：(重さ1, 価値10), (重さ2, 価値20), (重さ1, 価値15)-}
+items :: [(Int, Int)]
+items = [(1, 10), (2, 20), (1, 15)]
+maxValByWeight :: UArray Int Int
+maxValByWeight = accumArray max 0 (1, 2) items
+-- 結果:
+-- maxValByWeight ! 1 == 15 (10と15のmax)
+-- maxValByWeight ! 2 == 20
+
 ```
 
 ## Vector
@@ -134,9 +145,9 @@ let v = VU.unfoldrN 10 (\(a, b) -> Just (a, (b, a + b))) (0, 1)
 -- constructN これまでに生成したベクタ全体（または一部）を参照したいとき.生成中のベクタ v を引数に取ります。例えば、「累積和」や「素数判定（過去の素数で割ってみる）」などを1パスで作るのに使えます。
 -- 累積和のような処理（前の要素までの合計 + 現在のインデックス）
 -- v は「現在までに生成されたベクタ」
-let v = VU.constructN 5 (\v -> 
-            if VU.null v 
-            then 0 
+let v = VU.constructN 5 (\v ->
+            if VU.null v
+            then 0
             else VU.last v + VU.length v
         )
 -- i=0: [] -> 0

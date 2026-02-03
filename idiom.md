@@ -118,6 +118,15 @@ maxValByWeight = accumArray max 0 (1, 2) items
 -- maxValByWeight ! 1 == 15 (10と15のmax)
 -- maxValByWeight ! 2 == 20
 
+
+-- mapAccumL を使った貪欲法の例
+-- 区間スケジューリング問題：終了時間でソートした区間のリストに対して、貪欲法で最大非重複部分集合のサイズを求める
+(_, res) = mapAccumL f (minBound :: Int) $ sortOn snd [(123,86399),(1,86400),(86399,86400)]
+  where
+    f acc (l,r)
+      | acc <= l = (r, 1)
+      | otherwise = (acc, 0)
+sum res -- 2
 ```
 
 ## Vector

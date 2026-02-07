@@ -6,8 +6,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LexicalNegation #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE NPlusKPatterns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -17,6 +17,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
+
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 module Main where
@@ -76,7 +77,8 @@ type I = Char
 
 type O = String
 
-type Dom   = (Int, [(Int, String)])
+type Dom = (Int, [(Int, String)])
+
 type Codom = [String]
 
 type Solver = Dom -> Codom
@@ -95,18 +97,16 @@ decode = \case
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
 -- encode r = [[r]]
-encode = map (:[])
+encode = map (: [])
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, qs) = trace (show res)
-  catMaybes $ snd res
+solve (_, qs) = catMaybes $ snd $ mapAccumL f [] qs
   where
-    res = mapAccumL f [] qs
     f :: [String] -> (Int, String) -> ([String], Maybe String)
-    f acc (1, title) = (title:acc, Nothing)
-    f acc (2, _) = (acc, Just $ head acc)
-    f acc (3, _) = (tail acc, Nothing)
+    f stack (1, title) = (title : stack, Nothing)
+    f stack@(top : _) (2, _) = (stack, Just top)
+    f (_ : rest) (3, _) = (rest, Nothing)
     f _ _ = impossible "solve f"
 
 main :: IO ()
@@ -610,7 +610,6 @@ substring start len = take len . drop start
 substringsK :: Int -> String -> [String]
 substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
 
-
 {-# INLINE eratosthenes #-}
 eratosthenes :: Int -> UArray Int Bool
 eratosthenes n = runSTUArray $ do
@@ -635,7 +634,6 @@ primes n
   | n < 2 = []
   | n == 2 = [2]
   | otherwise = 2 : [p | (p, True) <- assocs $ eratosthenes n, odd p]
-
 
 {-# INLINE minimumDef #-}
 minimumDef :: (Foldable t, Ord p) => p -> t p -> p

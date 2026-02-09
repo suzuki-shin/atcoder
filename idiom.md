@@ -185,6 +185,13 @@ nubOrd' :: (VUM.Unbox a, Ord a) => [a] -> [a]
 nubOrd' xs = (VU.toList . VU.uniq . VU.modify (VAI.sortBy compare) . VU.fromList) xs
 ```
 
+## Maybe
+```haskell
+-- [Maybe a] から Justのものだけ取り出す
+catMaybes [Just "hoge", Nothing, Just "fuga", Nothing]
+-- 結果: ["hoge", "fuga"]
+```
+
 ## 二分探索
 
 ```haskell

@@ -106,10 +106,16 @@ N 以下の正整数のうち、桁和が K であるものの個数を求めて
 -}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,k) = length res
-  where
-    digitSum = sum . toDigits
-    res = filter (==k) $ map digitSum [1..n]
+solve (n, k) = count k $ map (sum . toDigits) [1 .. n]
+
+-- | 内包表記版
+-- solve (n, k) = length [i | i <- [1..n], (sum . toDigits) i == k]
+
+-- | foldl'版（中間リストを作らないので速い）
+-- solve (n, k) = foldl' f 0 [1..n]
+--   where
+--     f :: Int -> Int -> Int
+--     f acc i = if (sum . toDigits) i == k then acc + 1 else acc
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -664,6 +670,14 @@ sortOn' :: (VUM.Unbox a2, VUM.Unbox a1, Ord a2) => (a1 -> a2) -> [a1] -> [a1]
 sortOn' f =
   VU.toList . VU.map snd . VU.modify (VAI.sortBy (comparing fst)) .
   VU.map (\x -> let y = f x in y `seq` (y, x)) . VU.fromList
+
+{-# INLINE count #-}
+count :: Eq a => a -> [a] -> Int
+count a as = length $ filter (== a) as
+
+{-# INLINE countIf #-}
+countIf :: (a -> Bool) -> [a] -> Int
+countIf f as = length $ filter f as
 
 {-- bisect --}
 bisect :: (Integral a) => a -> a -> (a -> Bool) -> (a, a)

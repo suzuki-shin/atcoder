@@ -128,12 +128,22 @@ Query Q
 
 {-# INLINE solve #-}
 solve :: Solver
+{-
 solve (_, qs) = catMaybes mPoints
   where
     (_, mPoints) = mapAccumL f HM.empty qs
     f :: HM.HashMap String Int -> [String] -> (HM.HashMap String Int, Maybe Int)
     f acc ["1", name, point] = (HM.insert name (read point) acc, Nothing)
     f acc ["2", name] = (acc, HM.lookup name acc)
+-}
+
+{- foldl'版（mapAccumLは正格評価） -}
+solve (_, qs) = reverse $ catMaybes $ snd res
+  where
+    res = foldl' f (HM.empty, []) qs
+    -- f :: HM.HashMap String Int -> [String] -> (HM.HashMap String Int, Maybe Int)
+    f (acc, mPoints) ["1", name, point] = (HM.insert name (read point) acc, mPoints)
+    f (acc, mPoints) ["2", name] = (acc, HM.lookup name acc : mPoints)
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

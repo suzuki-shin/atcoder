@@ -141,7 +141,7 @@ solve (_, qs) = catMaybes mPoints
 solve (_, qs) = reverse $ catMaybes $ snd res
   where
     res = foldl' f (HM.empty, []) qs
-    -- f :: HM.HashMap String Int -> [String] -> (HM.HashMap String Int, Maybe Int)
+    f :: (HM.HashMap String Int, [Maybe Int]) -> [String] -> (HM.HashMap String Int, [Maybe Int])
     f (acc, mPoints) ["1", name, point] = (HM.insert name (read point) acc, mPoints)
     f (acc, mPoints) ["2", name] = (acc, HM.lookup name acc : mPoints)
 

@@ -597,33 +597,6 @@ substring start len = take len . drop start
 substringsK :: Int -> String -> [String]
 substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
 
-
-{-# INLINE eratosthenes #-}
-eratosthenes :: Int -> UArray Int Bool
-eratosthenes n = runSTUArray $ do
-  ps <- newArray (0, n) True
-  writeArray ps 0 False
-  writeArray ps 1 False
-  forM_ [4, 6 .. n] $ \i -> writeArray ps i False
-
-  let limit = floor (sqrt (fromIntegral n :: Double))
-  forM_ [3, 5 .. limit] $ \p -> do
-    isPrime <- readArray ps p
-    when isPrime $
-      forM_ [p * p, p * (p + 2) .. n] $
-        \i -> writeArray ps i False
-
-  return ps
-
--- | n以下の素数リストを返す
-{-# INLINE primes #-}
-primes :: Int -> [Int]
-primes n
-  | n < 2 = []
-  | n == 2 = [2]
-  | otherwise = 2 : [p | (p, True) <- assocs $ eratosthenes n, odd p]
-
-
 {-# INLINE minimumDef #-}
 minimumDef :: (Foldable t, Ord p) => p -> t p -> p
 minimumDef def' xs
@@ -672,6 +645,31 @@ bisect ng' ok' f = worker ng' ok'
 
 {- ORMOLU_DISABLE -}
 #if FALSE
+
+{-# INLINE eratosthenes #-}
+eratosthenes :: Int -> UArray Int Bool
+eratosthenes n = runSTUArray $ do
+  ps <- newArray (0, n) True
+  writeArray ps 0 False
+  writeArray ps 1 False
+  forM_ [4, 6 .. n] $ \i -> writeArray ps i False
+
+  let limit = floor (sqrt (fromIntegral n :: Double))
+  forM_ [3, 5 .. limit] $ \p -> do
+    isPrime <- readArray ps p
+    when isPrime $
+      forM_ [p * p, p * (p + 2) .. n] $
+        \i -> writeArray ps i False
+
+  return ps
+
+-- | n以下の素数リストを返す
+{-# INLINE primes #-}
+primes :: Int -> [Int]
+primes n
+  | n < 2 = []
+  | n == 2 = [2]
+  | otherwise = 2 : [p | (p, True) <- assocs $ eratosthenes n, odd p]
 
 {- ModInt -}
 modBase :: Int

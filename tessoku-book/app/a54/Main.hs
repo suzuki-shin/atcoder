@@ -137,7 +137,7 @@ solve (_, qs) = catMaybes mPoints
     f acc ["2", name] = (acc, HM.lookup name acc)
 -}
 
-{- foldl'版（mapAccumLは正格評価） -}
+{- foldl'版（mapAccumLは遅延評価） -}
 solve (_, qs) = reverse $ catMaybes $ snd res
   where
     res = foldl' f (HM.empty, []) qs

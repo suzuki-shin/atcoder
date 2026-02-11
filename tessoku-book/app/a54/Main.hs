@@ -130,10 +130,10 @@ Query Q
 solve :: Solver
 solve (_, qs) = catMaybes mPoints
   where
-    (_, mPoints) = mapAccumL f M.empty qs
-    f :: M.Map String Int -> [String] -> (M.Map String Int, Maybe Int)
-    f acc ["1", name, point] = (M.insert name (read point) acc, Nothing)
-    f acc ["2", name] = (acc, M.lookup name acc)
+    (_, mPoints) = mapAccumL f HM.empty qs
+    f :: HM.HashMap String Int -> [String] -> (HM.HashMap String Int, Maybe Int)
+    f acc ["1", name, point] = (HM.insert name (read point) acc, Nothing)
+    f acc ["2", name] = (acc, HM.lookup name acc)
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

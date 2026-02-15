@@ -119,19 +119,17 @@ Al ,Al+1,…,Ar−1 の最大値を答える。
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, _, qs) = runST $ do
-  st <- Seg.build (VU.replicate n (Max 0))
-  resRev <-
-    foldM
-      ( \acc q -> case q of
-          [1, pos, x] -> Seg.write st (pos - 1) (Max x) >> return acc
-          [2, l, r] -> do
-            Max v <- Seg.prod st (l - 1) (r - 1)
-            return (v : acc)
-          _ -> return acc
-      )
-      []
-      qs
-  return (reverse resRev)
+  st <- Seg.build $ VU.replicate n $ Max 0
+  resRev <- foldM (
+    \acc query -> case query of
+      [1,pos,x] -> do
+        Seg.write st (pos - 1) (Max x)
+        pure acc
+      [2,l,r] -> do
+        Max v <- Seg.prod st (l-1) (r-1)
+        pure (v: acc)
+    ) [] qs
+  pure (reverse resRev)
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

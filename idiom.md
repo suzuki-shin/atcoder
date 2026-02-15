@@ -54,6 +54,12 @@ ghci> fromJust $ findIndex (15 <=) [10..]
 5
 ```
 
+```haskell
+-- 挿入（intercalateを思い出そうとするとjoinが出てきてしまっていつも思い出せないのでメモ）
+>>> intercalate ", " ["Lorem", "ipsum", "dolor"]
+"Lorem, ipsum, dolor"
+```
+
 ## Map
 
 ```haskell
@@ -186,6 +192,7 @@ nubOrd' xs = (VU.toList . VU.uniq . VU.modify (VAI.sortBy compare) . VU.fromList
 ```
 
 ## Maybe
+
 ```haskell
 -- [Maybe a] から Justのものだけ取り出す
 catMaybes [Just "hoge", Nothing, Just "fuga", Nothing]

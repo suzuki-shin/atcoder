@@ -14,16 +14,16 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
+{-# HLINT ignore "Unused LANGUAGE pragma" #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 
-{-# HLINT ignore "Unused LANGUAGE pragma" #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
 module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
+import AtCoder.SegTree qualified as Seg
 import Control.Applicative
 import Control.Arrow hiding ((<+>))
 import Control.Arrow qualified as Arrow
@@ -49,6 +49,7 @@ import Data.List.Extra
 import Data.Map.Strict qualified as M
 import Data.Maybe
 import Data.Ord
+import Data.Semigroup (Max (..))
 import Data.Sequence qualified as Q
 import Data.Set qualified as S
 import Data.Tree qualified as T
@@ -114,20 +115,19 @@ Al ,Al+1,…,Ar−1 の最大値を答える。
 0≤x≤10^9
 1≤l<r≤N+1
 -}
+-- 点更新・区間取得のセグメント木
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, _, qs) = runST $ do
-  let mop = MonoidOp max 0
-  st <- buildSegTree n mop
-  resRev <- -- クエリの結果を逆順で溜める
+  st <- Seg.build (VU.replicate n (Max 0))
+  resRev <-
     foldM
-      ( \acc q -> case q of -- クエリ種別で分岐する
-          [1, pos, x] -> updateSeg st pos x >> return acc -- 点更新
+      ( \acc q -> case q of
+          [1, pos, x] -> Seg.write st (pos - 1) (Max x) >> return acc
           [2, l, r] -> do
-            -- 区間最大を取得
-            v <- querySeg st l r -- [l, r) の最大値
-            return (v : acc) -- 結果を追加
-          _ -> return acc -- 不正形式は無視（保険）
+            Max v <- Seg.prod st (l - 1) (r - 1)
+            return (v : acc)
+          _ -> return acc
       )
       []
       qs
@@ -670,90 +670,6 @@ maximumDef :: (Foldable t, Ord p) => p -> t p -> p
 maximumDef def' xs
   | null xs = def'
   | otherwise = maximum xs
-
-{- SegTree -}
--- | モノイド演算をまとめて渡すための構造体
-data MonoidOp a = MonoidOp
-  { op :: a -> a -> a,
-    e :: a
-  }
--- ^ opは結合演算、eは単位元
-
--- | セグメント木本体
-data SegTree s a = SegTree
-  { stSize :: !Int,
-    stVec :: !(VM.MVector s a),
-    stOp :: !(MonoidOp a)
-  }
--- ^ sizeは葉の開始位置、vecは1-indexed木配列、opはモノイド演算
-
--- | セグ木を初期化する（全て単位元で埋める）
-buildSegTree :: (VM.Unbox a) => Int -> MonoidOp a -> ST s (SegTree s a)
-buildSegTree n mop = do
-  let size = head $ dropWhile (< n) $ iterate (* 2) 1
-  -- \^ sizeはN以上の最小の2冪
-  vec <- VM.replicate (2 * size) (e mop)
-  -- \^ 1-indexed用に長さ2*size、単位元で初期化
-  return (SegTree size vec mop)
-
--- \^ セグ木を返す
-
--- | 点更新: A[pos] = x
-updateSeg :: (VM.Unbox a) => SegTree s a -> Int -> a -> ST s ()
-updateSeg (SegTree size vec mop) pos x = do
-  let i0 = size + (pos - 1)
-  -- \^ 1-basedのposを葉の添字へ変換
-  VM.write vec i0 x
-  -- \^ 葉に値を代入
-  let go i
-        | i <= 1 = return ()
-        -- \^ 根まで到達したら終了
-        | otherwise = do
-            let p = i `div` 2
-            -- \^ 親の添字
-            l <- VM.read vec (2 * p)
-            -- \^ 左子の値
-            r <- VM.read vec (2 * p + 1)
-            -- \^ 右子の値
-            VM.write vec p (op mop l r)
-            -- \^ 親はモノイド演算で更新
-            go p
-  -- \^ さらに上へ
-  go i0
-
--- \^ 再計算を開始
-
--- | 区間取得: [l, r) の集約値
-querySeg :: (VM.Unbox a) => SegTree s a -> Int -> Int -> ST s a
-querySeg (SegTree size vec mop) l r = do
-  let l0 = size + (l - 1)
-  -- \^ 左端を葉の添字へ
-  let r0 = size + (r - 1)
-  -- \^ 右端(排他)を葉の添字へ
-  let go li ri acc
-        | li >= ri = return acc
-        -- \^ 区間が空になったら終了
-        | otherwise = do
-            acc1 <-
-              if odd li
-                then do
-                  v <- VM.read vec li
-                  -- \^ 左端が右子なら採用
-                  return (op mop acc v)
-                else return acc
-            acc2 <-
-              if odd ri
-                then do
-                  v <- VM.read vec (ri - 1)
-                  -- \^ 右端が右子なら一つ左を採用
-                  return (op mop acc1 v)
-                else return acc1
-            go ((li + 1) `div` 2) (ri `div` 2) acc2
-  -- \^ 1段上へ縮める
-  go l0 r0 (e mop)
-
--- \^ 初期値は単位元
-
 
 
 {- ORMOLU_DISABLE -}

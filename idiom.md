@@ -124,6 +124,18 @@ maxValByWeight = accumArray max 0 (1, 2) items
 -- maxValByWeight ! 1 == 15 (10と15のmax)
 -- maxValByWeight ! 2 == 20
 
+{- 隣接リストでグラフ -}
+ghci> n
+4
+ghci> xs -- 無向辺のリスト
+[[1,2],[2,3],[3,4],[3,5]]
+ghci> edges = concatMap (\[a,b] -> [(a,b),(b,a)]) xs
+ghci> edges -- xsを両方向に展開したもの
+[(1,2),(2,1),(2,3),(3,2),(3,4),(4,3),(3,5),(5,3)]
+ghci> adj = accumArray (flip (:)) [] (1, n) edges -- 隣接リスト
+ghci> adj :: Array Int [Int]
+array (1,5) [(1,[2]),(2,[3,1]),(3,[5,4,2]),(4,[3]),(5,[3])]
+ghci>
 
 -- mapAccumL を使った貪欲法の例
 -- 区間スケジューリング問題：終了時間でソートした区間のリストに対して、貪欲法で最大非重複部分集合のサイズを求める

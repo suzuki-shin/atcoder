@@ -22,7 +22,6 @@
 
 module Main where
 
-import AtCoder.Dsu qualified as DSU
 import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
 import Control.Arrow hiding ((<+>))
@@ -40,6 +39,9 @@ import Data.Bool
 import Data.ByteString.Char8 qualified as B
 import Data.Char
 import Data.Function
+import Data.Graph.Inductive.Graph (mkGraph)
+import Data.Graph.Inductive.PatriciaTree (Gr)
+import Data.Graph.Inductive.Query.DFS (reachable)
 import Data.HashMap.Strict qualified as HM
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
@@ -114,13 +116,22 @@ i 番目の辺は頂点 Ai と頂点 Bi とを結んでいます。
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, _, xs) =
-  bool "The graph is not connected." "The graph is connected." $ runST $ do
-    dsu <- DSU.new n
-    forM_ xs $ \case
-      [a, b] -> DSU.merge_ dsu (a - 1) (b - 1)
-      _ -> return ()
-    sz <- DSU.size dsu 0
-    return (sz == n)
+  bool "The graph is not connected." "The graph is connected." (isConnected n xs)
+  where
+    isConnected :: Int -> [[Int]] -> Bool
+    isConnected n' edges =
+      let nodes = [(i, ()) | i <- [0 .. n' - 1]] -- 各ノードに空ラベルを付与
+          graph = mkGraph nodes (toEdges edges) :: Gr () ()
+       in length (reachable 0 graph) == n'
+
+    toEdges :: [[Int]] -> [(Int, Int, ())]
+    toEdges = foldr step []
+      where
+        step [a, b] acc =
+          let a' = a - 1
+              b' = b - 1
+           in (a', b', ()) : (b', a', ()) : acc
+        step _ acc = acc
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

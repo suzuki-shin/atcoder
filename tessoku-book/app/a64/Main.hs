@@ -100,9 +100,26 @@ encode :: Codom -> [[O]]
 
 encode = map (:[])
 
+{-
+問題文
+重み付き無向グラフに対する最短経路問題を解いてください。 具体的には、以下のようなグラフが与えられるとき、頂点 
+1 から各頂点までの最短経路長を求めてください。
+
+頂点数は N 、辺数は M である
+i 番目の辺は頂点 Ai と頂点 Bi を結び、長さは Ci である
+なお、以降の説明では、頂点 1 から頂点 k までの最短経路長を dist[k] とします。
+
+制約
+2≤N≤100000
+1≤M≤min(100000,N(N−1)/2)
+1≤Ai<Bi≤N (1≤i≤M)
+1≤Ci≤10000 (1≤i≤M)
+i/=j⟹(Ai ,Bi)/=(Aj ,Bj)
+入力は全て整数
+-}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, abcs) = VU.toList dist
+solve (n, abcs) = map (unreachableTo (-1)) $ VU.toList dist
   where
     g = buildUGraph n abcs
     dist = dijkstra g 0
@@ -421,6 +438,22 @@ bfs g s = runST $ do
               edges
           loop q''
   loop (Q.singleton s)
+
+{-# INLINE inf #-}
+inf :: Int
+inf = maxBound `quot` 4
+
+-- | 到達不能なら True
+{-# INLINE isUnreachable #-}
+isUnreachable :: Int -> Bool
+isUnreachable d = d >= inf
+
+-- | 到達不能を -1 に変換
+{-# INLINE unreachableTo #-}
+unreachableTo :: Int -> Int -> Int
+unreachableTo fallback d
+  | isUnreachable d = fallback
+  | otherwise = d
 
 -- | Dijkstra で始点からの最短距離を求める（非負重み）
 {-# INLINE dijkstra #-}

@@ -23,7 +23,6 @@
 module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
-import AtCoder.SegTree qualified as Seg
 import Control.Applicative
 import Control.Arrow hiding ((<+>), loop)
 import Control.Arrow qualified as Arrow
@@ -80,27 +79,30 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, Int, [[Int]])
 
-type Codom = Int
+type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
-  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+  [n, m] : rest -> (n, m, rest)
+  _ -> invalid $ "toDom: " ++ show @Int 88
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
+-- encode r = [[r]]
 
--- encode = map (:[])
+encode = map (:[])
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n, _, xs) = VU.toList dist
+  where
+    g = buildUGraph n $ map (\[a,b] -> (a-1, b-1, 1)) xs
+    dist = bfs g 0
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -306,44 +308,18 @@ csum2 (h, w) rows = listArray ((0, 0), (h, w)) flatList
   ary ! (r2 + 1, c2 + 1) - ary ! (r1, c2 + 1) - ary ! (r2 + 1, c1) + ary ! (r1, c1)
 {-# INLINE (+!!) #-}
 
-{- しゃくとり法 -}
-{-# INLINE shakutori #-}
--- p: 条件を満たすかどうかを判定する関数 (l -> r -> Bool)
--- lls: 左端 L が指す要素以降のリスト
--- rrs: 右端 R が指す要素以降のリスト
--- len: 現在の条件を満たす区間 [L, R) の要素数 (Rを含まない)
-shakutori :: (Int -> Int -> Bool) -> [Int] -> [Int] -> Int -> [Int]
--- 右端 R がリストの終端に達した場合
--- 以降のすべての L について、残りの len がそのまま解になる
--- L を進めるごとに len を減らしていく
-shakutori p (_ : ls) [] len = len : shakutori p ls [] (len - 1)
-shakutori p lls@(l : ls) rrs@(r : rs) len
-  -- 条件を満たすなら、右端 R を右へ進める
-  -- 区間の長さ len は +1 される
-  | p l r = shakutori p lls rs (len + 1)
-  -- 条件を満たさなくなった場合、現在の L に対するペアの数は len 個 (A[L]...A[R-1])
-  -- len を結果リストに追加し、左端 L を右へ進める
-  -- L が進むと区間の長さ len は -1 される
-  | otherwise = len : shakutori p ls rrs (len - 1)
--- 左端 L が終端に達したら終了
-shakutori _ _ _ _ = []
-
 {- グラフ -}
 
 type Weight = Int
 
 type Graph = V.Vector (VU.Vector (Int, Weight))
 
--- | (r, c) を 1次元IDに変換する（0-indexed）。第1引数は列数 W。
--- >>> toIdx 5 (2, 3)  -- 幅5のグリッドで (行2, 列3) → 13
--- 13
+-- | (r, c) を 1次元IDに変換する（0-indexed）
 {-# INLINE toIdx #-}
 toIdx :: Int -> (Int, Int) -> Int
 toIdx w (!r, !c) = r * w + c
 
--- | 1次元IDを (r, c) に変換する（0-indexed）。第1引数は列数 W。
--- >>> fromIdx 5 13  -- 幅5のグリッドで ID 13 → (行2, 列3)
--- (2,3)
+-- | 1次元IDを (r, c) に変換する（0-indexed）
 {-# INLINE fromIdx #-}
 fromIdx :: Int -> Int -> (Int, Int)
 fromIdx w !v = (v `quot` w, v `rem` w)
@@ -356,7 +332,7 @@ adj4 h w (!r, !c) =
   where
     inside (!rr, !cc) = 0 <= rr && rr < h && 0 <= cc && cc < w
 
--- | 辺リストから隣接リストを構築する（有向。無向は buildUGraph を使う）
+-- | 辺リストから隣接リストを構築する（有向。無向は両方向を渡す）
 {-# INLINE buildGraph #-}
 buildGraph :: Int -> [(Int, Int, Weight)] -> Graph
 buildGraph n edges = runST $ do
@@ -422,7 +398,6 @@ bfs g s = runST $ do
 dijkstra :: Graph -> Int -> VU.Vector Int
 dijkstra g s = runST $ do
   let n = V.length g
-  -- maxBound を直接使うと d + w がオーバーフローするため、十分大きい値で代用
   let inf = maxBound `quot` 4
   dist <- VUM.replicate n (inf :: Int)
   VUM.write dist s 0
@@ -430,8 +405,6 @@ dijkstra g s = runST $ do
         Nothing -> VU.freeze dist
         Just (H.Entry d v, heap') -> do
           !dv <- VUM.read dist v
-          -- ヒープの距離が現在の最短距離と一致しない場合、
-          -- すでにより短い経路で更新済みなのでスキップ（Lazy Deletion）
           if d /= dv
             then loop heap'
             else do
@@ -451,6 +424,28 @@ dijkstra g s = runST $ do
                   edges
               loop heap''
   loop (H.singleton (H.Entry 0 s))
+
+{- しゃくとり法 -}
+{-# INLINE shakutori #-}
+-- p: 条件を満たすかどうかを判定する関数 (l -> r -> Bool)
+-- lls: 左端 L が指す要素以降のリスト
+-- rrs: 右端 R が指す要素以降のリスト
+-- len: 現在の条件を満たす区間 [L, R) の要素数 (Rを含まない)
+shakutori :: (Int -> Int -> Bool) -> [Int] -> [Int] -> Int -> [Int]
+-- 右端 R がリストの終端に達した場合
+-- 以降のすべての L について、残りの len がそのまま解になる
+-- L を進めるごとに len を減らしていく
+shakutori p (_ : ls) [] len = len : shakutori p ls [] (len - 1)
+shakutori p lls@(l : ls) rrs@(r : rs) len
+  -- 条件を満たすなら、右端 R を右へ進める
+  -- 区間の長さ len は +1 される
+  | p l r = shakutori p lls rs (len + 1)
+  -- 条件を満たさなくなった場合、現在の L に対するペアの数は len 個 (A[L]...A[R-1])
+  -- len を結果リストに追加し、左端 L を右へ進める
+  -- L が進むと区間の長さ len は -1 される
+  | otherwise = len : shakutori p ls rrs (len - 1)
+-- 左端 L が終端に達したら終了
+shakutori _ _ _ _ = []
 
 {- DP -}
 -- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
@@ -727,58 +722,6 @@ substring start len = take len . drop start
 substringsK :: Int -> String -> [String]
 substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
 
-{-# INLINE minimumDef #-}
-minimumDef :: (Foldable t, Ord p) => p -> t p -> p
-minimumDef def' xs
-  | null xs = def'
-  | otherwise = minimum xs
-
-{-# INLINE maximumDef #-}
-maximumDef :: (Foldable t, Ord p) => p -> t p -> p
-maximumDef def' xs
-  | null xs = def'
-  | otherwise = maximum xs
-
-{-# INLINE sort' #-}
-sort' :: (VUM.Unbox a, Ord a) => [a] -> [a]
-sort' xs = VU.toList $ VU.modify (VAI.sortBy compare) (VU.fromList xs)
-
-{-# INLINE sortBy' #-}
-sortBy' :: (VUM.Unbox a) => (a -> a -> Ordering) -> [a] -> [a]
-sortBy' f xs = VU.toList $ VU.modify (VAI.sortBy f) (VU.fromList xs)
-
-{-# INLINE sortOn' #-}
-sortOn' :: (VUM.Unbox a2, VUM.Unbox a1, Ord a2) => (a1 -> a2) -> [a1] -> [a1]
-sortOn' f =
-  VU.toList
-    . VU.map snd
-    . VU.modify (VAI.sortBy (comparing fst))
-    . VU.map (\x -> let y = f x in y `seq` (y, x))
-    . VU.fromList
-
-{-# INLINE count #-}
-count :: (Eq a) => a -> [a] -> Int
-count a as = length $ filter (== a) as
-
-{-# INLINE countIf #-}
-countIf :: (a -> Bool) -> [a] -> Int
-countIf f as = length $ filter f as
-
-{-- bisect --}
-bisect :: (Integral a) => a -> a -> (a -> Bool) -> (a, a)
-bisect ng' ok' f = worker ng' ok'
-  where
-    worker ng ok
-      | abs (ok - ng) <= 1 = (ng, ok)
-      | f m = worker ng m
-      | otherwise = worker m ok
-      where
-        m = (ng + ok) `div` 2
-{-# INLINE bisect #-}
-
-{- ORMOLU_DISABLE -}
-#if FALSE
-
 {-# INLINE eratosthenes #-}
 eratosthenes :: Int -> UArray Int Bool
 eratosthenes n = runSTUArray $ do
@@ -804,6 +747,20 @@ primes n
   | n == 2 = [2]
   | otherwise = 2 : [p | (p, True) <- assocs $ eratosthenes n, odd p]
 
+{-# INLINE minimumDef #-}
+minimumDef :: (Foldable t, Ord p) => p -> t p -> p
+minimumDef def' xs
+  | null xs = def'
+  | otherwise = minimum xs
+
+{-# INLINE maximumDef #-}
+maximumDef :: (Foldable t, Ord p) => p -> t p -> p
+maximumDef def' xs
+  | null xs = def'
+  | otherwise = maximum xs
+
+{- ORMOLU_DISABLE -}
+#if FALSE
 
 {- ModInt -}
 modBase :: Int

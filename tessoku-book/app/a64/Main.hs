@@ -80,27 +80,32 @@ type I = Int
 
 type O = Int
 
-type Dom = (Int, [Int])
+type Dom = (Int, [(Int,Int,Int)])
 
-type Codom = Int
+type Codom = [Int]
 
 type Solver = Dom -> Codom
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n] : as : _ -> (n, as)
+  [n,_] : rest -> (n, abcs)
+    where
+      abcs = map (\[a,b,c] -> (a-1,b-1,c)) rest
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [[r]]
+-- encode r = [[r]]
 
--- encode = map (:[])
+encode = map (:[])
 
 {-# INLINE solve #-}
 solve :: Solver
-solve x = trace (show x) def
+solve (n, abcs) = VU.toList dist
+  where
+    g = buildUGraph n abcs
+    dist = dijkstra g 0
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

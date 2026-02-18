@@ -24,7 +24,7 @@ module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
 import Control.Applicative
-import Control.Arrow hiding ((<+>))
+import Control.Arrow hiding (loop, (<+>))
 import Control.Arrow qualified as Arrow
 import Control.Monad
 import Control.Monad.ST (ST, runST)
@@ -43,6 +43,7 @@ import Data.Graph.Inductive.Graph (mkGraph)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 import Data.Graph.Inductive.Query.DFS (reachable)
 import Data.HashMap.Strict qualified as HM
+import Data.Heap qualified as H
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
 import Data.Ix
@@ -59,6 +60,7 @@ import Data.Vector.Algorithms.Intro qualified as VAI
 import Data.Vector.Fusion.Bundle qualified as VFB
 import Data.Vector.Generic qualified as VG
 import Data.Vector.Unboxed qualified as VU
+import Data.Vector.Unboxed.Mutable qualified as VUM
 import Debug.Trace qualified as Debug
 import Text.Printf
 
@@ -120,18 +122,9 @@ solve (n, _, xs) =
   where
     isConnected :: Int -> [[Int]] -> Bool
     isConnected n' edges =
-      let nodes = [(i, ()) | i <- [0 .. n' - 1]] -- 各ノードに空ラベルを付与
-          graph = mkGraph nodes (toEdges edges) :: Gr () ()
-       in length (reachable 0 graph) == n'
-
-    toEdges :: [[Int]] -> [(Int, Int, ())]
-    toEdges = foldr step []
-      where
-        step [a, b] acc =
-          let a' = a - 1
-              b' = b - 1
-           in (a', b', ()) : (b', a', ()) : acc
-        step _ acc = acc
+      let g = buildUGraph n $ map (\[a,b] -> (a - 1, b - 1, 1)) xs
+          dist = bfs g 0
+       in VU.all (/= -1) dist
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -358,6 +351,130 @@ shakutori p lls@(l : ls) rrs@(r : rs) len
   | otherwise = len : shakutori p ls rrs (len - 1)
 -- 左端 L が終端に達したら終了
 shakutori _ _ _ _ = []
+
+{- グラフ -}
+
+type Weight = Int
+
+type Graph = V.Vector (VU.Vector (Int, Weight))
+
+-- | (r, c) を 1次元IDに変換する（0-indexed）。第1引数は列数 W。
+-- >>> toIdx 5 (2, 3)  -- 幅5のグリッドで (行2, 列3) → 13
+-- 13
+{-# INLINE toIdx #-}
+toIdx :: Int -> (Int, Int) -> Int
+toIdx w (!r, !c) = r * w + c
+
+-- | 1次元IDを (r, c) に変換する（0-indexed）。第1引数は列数 W。
+-- >>> fromIdx 5 13  -- 幅5のグリッドで ID 13 → (行2, 列3)
+-- (2,3)
+{-# INLINE fromIdx #-}
+fromIdx :: Int -> Int -> (Int, Int)
+fromIdx w !v = (v `quot` w, v `rem` w)
+
+-- | グリッドの上下左右の隣接座標を列挙する（範囲外は除外）
+{-# INLINE adj4 #-}
+adj4 :: Int -> Int -> (Int, Int) -> [(Int, Int)]
+adj4 h w (!r, !c) =
+  filter inside [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]
+  where
+    inside (!rr, !cc) = 0 <= rr && rr < h && 0 <= cc && cc < w
+
+-- | 辺リストから隣接リストを構築する（有向。無向は buildUGraph を使う）
+{-# INLINE buildGraph #-}
+buildGraph :: Int -> [(Int, Int, Weight)] -> Graph
+buildGraph n edges = runST $ do
+  deg <- VUM.replicate n (0 :: Int)
+  forM_ edges $ \(!u, _, _) -> VUM.modify deg (+ 1) u
+  deg' <- VU.freeze deg
+
+  offsets <- VUM.new (n + 1)
+  VUM.write offsets 0 0
+  forM_ [0 .. n - 1] $ \i -> do
+    let !prev = deg' VU.! i
+    !acc <- VUM.read offsets i
+    VUM.write offsets (i + 1) (acc + prev)
+  offs <- VU.freeze offsets
+
+  buf <- VUM.new (VU.last offs) :: ST s (VUM.MVector s (Int, Weight))
+  cursor <- VU.thaw offs
+  forM_ edges $ \(!u, !v, !w) -> do
+    !idx <- VUM.read cursor u
+    VUM.write buf idx (v, w)
+    VUM.write cursor u (idx + 1)
+  frozen <- VU.freeze buf
+  pure $ V.generate n $ \i ->
+    let !l = offs VU.! i
+        !r = offs VU.! (i + 1)
+     in VU.slice l (r - l) frozen
+
+-- | 無向グラフ用。各辺を自動で双方向に展開して隣接リストを構築する
+{-# INLINE buildUGraph #-}
+buildUGraph :: Int -> [(Int, Int, Weight)] -> Graph
+buildUGraph n edges =
+  buildGraph n $ concatMap (\(u, v, w) -> [(u, v, w), (v, u, w)]) edges
+
+-- | BFS で始点からの最短距離（重みなし）を求める
+{-# INLINE bfs #-}
+bfs :: Graph -> Int -> VU.Vector Int
+bfs g s = runST $ do
+  let n = V.length g
+  dist <- VUM.replicate n (-1 :: Int)
+  VUM.write dist s 0
+  let loop q = case Q.viewl q of
+        Q.EmptyL -> VU.freeze dist
+        v Q.:< q' -> do
+          !dv <- VUM.read dist v
+          let edges = g V.! v
+          q'' <-
+            VU.foldM'
+              ( \qq (!to, _) -> do
+                  !d <- VUM.read dist to
+                  if d /= -1
+                    then pure qq
+                    else do
+                      VUM.write dist to (dv + 1)
+                      pure (qq Q.|> to)
+              )
+              q'
+              edges
+          loop q''
+  loop (Q.singleton s)
+
+-- | Dijkstra で始点からの最短距離を求める（非負重み）
+{-# INLINE dijkstra #-}
+dijkstra :: Graph -> Int -> VU.Vector Int
+dijkstra g s = runST $ do
+  let n = V.length g
+  -- maxBound を直接使うと d + w がオーバーフローするため、十分大きい値で代用
+  let inf = maxBound `quot` 4
+  dist <- VUM.replicate n (inf :: Int)
+  VUM.write dist s 0
+  let loop heap = case H.viewMin heap of
+        Nothing -> VU.freeze dist
+        Just (H.Entry d v, heap') -> do
+          !dv <- VUM.read dist v
+          -- ヒープの距離が現在の最短距離と一致しない場合、
+          -- すでにより短い経路で更新済みなのでスキップ（Lazy Deletion）
+          if d /= dv
+            then loop heap'
+            else do
+              let edges = g V.! v
+              heap'' <-
+                VU.foldM'
+                  ( \h (!to, !w) -> do
+                      let !nd = d + w
+                      !dt <- VUM.read dist to
+                      if nd < dt
+                        then do
+                          VUM.write dist to nd
+                          pure (H.insert (H.Entry nd to) h)
+                        else pure h
+                  )
+                  heap'
+                  edges
+              loop heap''
+  loop (H.singleton (H.Entry 0 s))
 
 {- DP -}
 -- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B

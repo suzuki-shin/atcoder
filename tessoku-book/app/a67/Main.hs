@@ -24,6 +24,7 @@ module Main where
 
 import AtCoder.Dsu qualified as Dsu
 import AtCoder.Extra.Bisect qualified as AB
+import AtCoder.Extra.Tree (mst)
 import AtCoder.SegTree qualified as Seg
 import Control.Applicative
 import Control.Arrow hiding (loop, (<+>))
@@ -95,7 +96,7 @@ decode = \case
       abcs =
         map
           ( \case
-              [a, b, c] -> (a, b, c)
+              [a, b, c] -> (a-1, b-1, c)
               _ -> error "invalid"
           )
           rest
@@ -109,23 +110,14 @@ encode r = [[r]]
 
 {-
 最小全域木 クラスカル法
+AtCoder.Extra.Tree.mst
 -}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, _, abcs) = runST $ do
-  dsu <- Dsu.new n
-  let edges = sortOn (\(_, _, c) -> c) abcs
-  foldM
-    ( \acc (a, b, c) -> do
-        isSame <- Dsu.same dsu (a - 1) (b - 1)
-        if isSame
-          then pure acc
-          else do
-            Dsu.merge_ dsu (a - 1) (b - 1)
-            pure (acc + c)
-    )
-    0
-    edges
+solve (n,_,abcs) = w
+  where
+    edges = VU.fromList abcs
+    (w,_,_) = mst n edges
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

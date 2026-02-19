@@ -23,6 +23,7 @@
 module Main where
 
 import AtCoder.Extra.Bisect qualified as AB
+import AtCoder.Dsu qualified as Dsu
 import AtCoder.SegTree qualified as Seg
 import Control.Applicative
 import Control.Arrow hiding ((<+>), loop)
@@ -78,20 +79,18 @@ debug = True
 
 type I = Int
 
-type O = Int
+type O = String
 
-type Dom = (Int, [(Int,Int,Int)])
+type Dom = (Int, Int, [[Int]])
 
-type Codom = [Int]
+type Codom = [String]
 
 type Solver = Dom -> Codom
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n,_] : rest -> (n, abcs)
-    where
-      abcs = map (\[a,b,c] -> (a-1,b-1,c)) rest
+  [n,q] : as -> (n, q, as)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
@@ -100,29 +99,21 @@ encode :: Codom -> [[O]]
 
 encode = map (:[])
 
-{-
-問題文
-重み付き無向グラフに対する最短経路問題を解いてください。 具体的には、以下のようなグラフが与えられるとき、頂点 
-1 から各頂点までの最短経路長を求めてください。
-
-頂点数は N 、辺数は M である
-i 番目の辺は頂点 Ai と頂点 Bi を結び、長さは Ci である
-なお、以降の説明では、頂点 1 から頂点 k までの最短経路長を dist[k] とします。
-
-制約
-2≤N≤100000
-1≤M≤min(100000,N(N−1)/2)
-1≤Ai<Bi≤N (1≤i≤M)
-1≤Ci≤10000 (1≤i≤M)
-i/=j⟹(Ai ,Bi)/=(Aj ,Bj)
-入力は全て整数
--}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n, abcs) = map (unreachableTo (-1)) $ VU.toList dist
-  where
-    g = buildUGraph n abcs
-    dist = dijkstra g 0
+solve (n,_,queries) = map yn $ runST $ do
+  dsu <- Dsu.new n
+  resRev <- foldM (
+    \acc query -> case query of
+      [1,u,v] -> do
+        Dsu.merge_ dsu (u-1) (v-1)
+        pure acc
+      [2,u,v] -> do
+        isSame <- Dsu.same dsu (u-1) (v-1)
+        pure (isSame : acc)
+      _ -> error "invalid"
+    ) [] queries
+  pure $ reverse resRev
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -439,27 +430,13 @@ bfs g s = runST $ do
           loop q''
   loop (Q.singleton s)
 
-{-# INLINE inf #-}
-inf :: Int
-inf = maxBound `quot` 4
-
--- | 到達不能なら True
-{-# INLINE isUnreachable #-}
-isUnreachable :: Int -> Bool
-isUnreachable d = d >= inf
-
--- | 到達不能を -1 に変換
-{-# INLINE unreachableTo #-}
-unreachableTo :: Int -> Int -> Int
-unreachableTo fallback d
-  | isUnreachable d = fallback
-  | otherwise = d
-
 -- | Dijkstra で始点からの最短距離を求める（非負重み）
 {-# INLINE dijkstra #-}
 dijkstra :: Graph -> Int -> VU.Vector Int
 dijkstra g s = runST $ do
   let n = V.length g
+  -- maxBound を直接使うと d + w がオーバーフローするため、十分大きい値で代用
+  let inf = maxBound `quot` 4
   dist <- VUM.replicate n (inf :: Int)
   VUM.write dist s 0
   let loop heap = case H.viewMin heap of

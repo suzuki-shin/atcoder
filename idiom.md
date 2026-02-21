@@ -211,6 +211,20 @@ catMaybes [Just "hoge", Nothing, Just "fuga", Nothing]
 -- 結果: ["hoge", "fuga"]
 ```
 
+## Bits
+```haskell
+-- ビット全探索: 部分集合を列挙
+-- n個の要素からの全部分集合を列挙
+solve n =
+  [ selected
+  | mask <- [0 .. bit n - 1]                    -- 0 から 2^n - 1 まで
+  , let selected = [i | i <- [0..n-1], testBit mask i]  -- maskで選ばれた要素
+  ]
+
+-- 例: solve 3
+-- [[],[0],[1],[0,1],[2],[0,2],[1,2],[0,1,2]]
+```
+
 ## 二分探索
 
 ```haskell

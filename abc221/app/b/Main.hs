@@ -90,14 +90,11 @@ encode r = [r]
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (s,t) = yn $ (
-  diffCnt == 0) ||
-  (diffCnt == 2 && abs(head diffIxs - diffIxs !! 1) == 1 && s !! head diffIxs == t !! (diffIxs !! 1) && s !! (diffIxs !! 1) == t !! head diffIxs)
+solve (s,t) = yn $ s == t || any (== t) [swapAt i s | i <- [0.. length s - 2]]
   where
-    res = zipWith3 (\x y z -> (x == y, z)) s t [0 ..]
-    diffCnt = countIf (not . fst) res
-    diffIxs = sort $ map snd $ filter (not . fst) res
-
+    swapAt i xs = l ++ b : a : r
+      where
+        (l, a:b:r) = splitAt i xs
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

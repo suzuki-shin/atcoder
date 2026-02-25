@@ -60,6 +60,14 @@ ghci> fromJust $ findIndex (15 <=) [10..]
 "Lorem, ipsum, dolor"
 ```
 
+```haskell
+-- 奇数列挙
+ghci> n = 10
+ghci> [1,3..n]
+[1,3,5,7,9]
+ghci>
+```
+
 ## Map
 
 ```haskell

@@ -99,15 +99,13 @@ encode r = [[r]]
 
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,m,ass) = trace (show ass)
-  maximum $ map scoreOfGroup tss
+solve (n,m,ass) =
+  maximum [scoreOfGroup t1 t2 | t1 <- [1 .. m], t2 <- [t1 + 1 .. m]]
   where
     ass' :: UArray (Int, Int) Int
     ass' = listArray ((1,1),(n,m)) $ concat ass
-    tss :: [(Int, Int)]
-    tss = [(t1,t2)| t1 <- [1..m], t2 <- [1..m], t1 /= t2]
-    scoreOfGroup :: (Int, Int) -> Int
-    scoreOfGroup (t1,t2) = sum [ score |i <- [1..n], let score = max (ass' ! (i,t1)) (ass' ! (i,t2))]
+    scoreOfGroup :: Int -> Int -> Int
+    scoreOfGroup t1 t2 = sum [max (ass' ! (i, t1)) (ass' ! (i, t2)) | i <- [1 .. n]]
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

@@ -68,6 +68,20 @@ ghci> [1,3..n]
 ghci>
 ```
 
+```haskell
+-- `iterate` は「同じ関数を繰り返し適用した結果のリスト」が欲し意図機の定番
+ghci > n = 4
+ghci > take (n+1) $ iterate (*2) 1 -- ２の累乗列
+[1,2,4,8,16]
+```
+
+```haskell
+-- ２次元グリッドの90度回転
+ghci> rotateR90 = transpose . reverse
+ghci> rotageR90 [[0,1,2],[3,4,5],[6,7,8]]
+[[6,3,0],[7,4,1],[8,5,2]]
+```
+
 ## Map
 
 ```haskell
@@ -220,6 +234,7 @@ catMaybes [Just "hoge", Nothing, Just "fuga", Nothing]
 ```
 
 ## Bits
+
 ```haskell
 -- ビット全探索: 部分集合を列挙
 -- n個の要素からの全部分集合を列挙

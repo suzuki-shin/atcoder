@@ -96,6 +96,10 @@ encode :: Codom -> [[O]]
 encode r = [[r]]
 -- encode = map (:[])
 
+{-
+@tags: [オーバーフロー シミュレーション]
+@note: k≤18で途中の掛け算で10^36になる。Intではオーバーフロー。Integerを使う。制約をみて気づくようにする
+-}
 {-# INLINE solve #-}
 solve :: Solver
 solve (n,k,as) = trace (show res) res

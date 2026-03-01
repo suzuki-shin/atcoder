@@ -6,8 +6,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LexicalNegation #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE NPlusKPatterns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -17,15 +17,16 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
+
 {-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 module Main where
 
+import AtCoder.Dsu qualified as Dsu
 import AtCoder.Extra.Bisect qualified as AB
 import AtCoder.SegTree qualified as Seg
-import AtCoder.Dsu qualified as Dsu
 import Control.Applicative
-import Control.Arrow hiding ((<+>), loop)
+import Control.Arrow hiding (loop, (<+>))
 import Control.Arrow qualified as Arrow
 import Control.Monad
 import Control.Monad.ST (ST, runST)
@@ -80,7 +81,8 @@ type I = Int
 
 type O = Int
 
-type Dom   = (Int, [Int])
+type Dom = (Int, [Int])
+
 type Codom = Int
 
 type Solver = Dom -> Codom
@@ -94,16 +96,21 @@ decode = \case
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
 encode r = [[r]]
+
 -- encode = map (:[])
 
+{-
+@tags: [全探索 探索範囲の絞り込み 問題文の読解]
+@note: 「x以上がx個以上」を満たす最大のx。xの上限はmax(A)ではなくN（要素数）。値の範囲と個数の範囲を区別する。[0..max(A)]だとTLE。
+  誤読しやすいポイント: xが「値の閾値」と「個数の下限」の二重の役割を持つため、「個数が最大になるx」と読み違えやすい。正しくは「条件count>=xを満たすx自体の最大値」。
+  対策: 小さい具体例で表を作り、条件の意味を手で確認してから実装に入る。
+-}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,as) =
-  maximum res
+solve (n, as) = maximum res
   where
-    av = VU.fromList as
-    res = filter f [0..n]
-    f x = vLength (VU.filter (x<=) av) >= x
+    res = filter f [0 .. n]
+    f x = countIf (x <=) as >= x
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -768,11 +775,14 @@ sortBy' f xs = VU.toList $ VU.modify (VAI.sortBy f) (VU.fromList xs)
 {-# INLINE sortOn' #-}
 sortOn' :: (VUM.Unbox a2, VUM.Unbox a1, Ord a2) => (a1 -> a2) -> [a1] -> [a1]
 sortOn' f =
-  VU.toList . VU.map snd . VU.modify (VAI.sortBy (comparing fst)) .
-  VU.map (\x -> let y = f x in y `seq` (y, x)) . VU.fromList
+  VU.toList
+    . VU.map snd
+    . VU.modify (VAI.sortBy (comparing fst))
+    . VU.map (\x -> let y = f x in y `seq` (y, x))
+    . VU.fromList
 
 {-# INLINE count #-}
-count :: Eq a => a -> [a] -> Int
+count :: (Eq a) => a -> [a] -> Int
 count a as = length $ filter (== a) as
 
 {-# INLINE countIf #-}

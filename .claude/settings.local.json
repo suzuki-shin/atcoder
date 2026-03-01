@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(haskell-language-server-wrapper --version)",
+      "Bash(ls:*)",
+      "Read(.github/agents/ac-haskell-patterns.md)",
+      "Read(AtCoder振り返りNotionガイド.md)"
+    ]
+  }
+}

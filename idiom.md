@@ -2,9 +2,16 @@
 
 ```haskell
 {----- 分割 -----}
+-- リストを要素n個ずつに分割
+-- Data.List.Split.chunksOf
+ghci> chunksOf 3 [1..10]
+[[1,2,3],[4,5,6],[7,8,9],[10]]
+```
 
+```haskell
 {- partition :: (a -> Bool) -> [a] -> ([a], [a]) -}
 -- リストを条件を満たす要素と満たさない要素に分割する
+
 ghci> let (evens, odds) = partition even [1..10]
 ghci> (evens, odds)
 ([2,4,6,8,10],[1,3,5,7,9])
@@ -281,6 +288,58 @@ solve (_,k,as,bs,cs,ds) =
   let ps = [a + b | a <- as, b <- bs, a + b < k]
       qs = IS.fromList [c + d | c <- cs, d <- ds, c + d < k]
   in yn $ any (\p -> IS.member (k - p) qs) ps
+```
+
+## Data.Sequence (キュー / 両端キュー)
+
+```haskell
+import Data.Sequence qualified as Q
+
+{----- 生成 -----}
+Q.empty              -- 空の Seq
+Q.singleton 42       -- 要素1つの Seq
+Q.fromList [1,2,3]   -- リストから生成
+
+{----- 追加 (すべて O(1)) -----}
+Q.empty Q.|> 3       -- 末尾に追加 (enqueue): fromList [3]
+5 Q.<| Q.singleton 3 -- 先頭に追加:           fromList [5,3]
+
+{----- 先頭の取り出し (dequeue) O(1) -----}
+case Q.viewl q of
+  Q.EmptyL    -> ...        -- キューが空
+  x Q.:< rest -> ...        -- x: 先頭要素, rest: 残り
+
+{----- 末尾の取り出し O(1) -----}
+case Q.viewr q of
+  Q.EmptyR    -> ...        -- キューが空
+  rest Q.:> x -> ...        -- x: 末尾要素, rest: 残り
+
+{----- その他の操作 -----}
+Q.length q            -- 長さ O(1)
+Q.index q i           -- i番目の要素 O(log(min(i,n-i)))
+q Q.>< q'             -- 2つのSeqを結合 O(log(min(n1,n2)))
+Q.null q              -- 空かどうか O(1)
+
+{----- 典型的な使い方: クエリ逐次処理 (mapAccumL) -----}
+-- 状態(キュー)を持ちながらクエリを処理し、出力はMaybeで表現
+solve (n, qs) = catMaybes mRes
+  where
+    (_, mRes) = mapAccumL f Q.empty qs
+    f acc [1,x] = (acc Q.|> x, Nothing)   -- enqueue
+    f acc [2]   = case Q.viewl acc of
+      x Q.:< rest -> (rest, Just x)       -- dequeue & 出力
+      _ -> error "empty"
+    f _ _ = error "invalid"
+
+{----- 典型的な使い方: BFS -----}
+-- Bonsai の bfs 関数で使われているパターン
+let loop q = case Q.viewl q of
+      Q.EmptyL -> ...                     -- 探索終了
+      v Q.:< q' -> do
+        ...
+        let q'' = q' Q.|> next            -- 次の頂点をenqueue
+        loop q''
+in loop (Q.singleton start)
 ```
 
 ## 数値計算

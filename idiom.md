@@ -41,9 +41,10 @@ ghci> let xys = [(0,0),(0,1),(1,2),(2,0)] -- 全員の座標
 ghci> let bm = map snd
 ghci> let (lights, unLights) = bimap bm bm . partition (flip elem as . fst) $ zip [1..] xys
 ([(0,1),(1,2)],[(0,0),(2,0)]) -- (光を持っている人の座標、持っていない人の座標)
+```
 
+```haskell
 {----- uniq -----}
-
 -- 順序は保存しなくよければSetを使う（Ordのインスタンスである必要がある）O(NlogN)
 ghci> S.fromList [["..","##"],["##","#."],["..","##"],["##",".#"]]
 fromList [["##","#."],["##",".#"],["..","##"]]

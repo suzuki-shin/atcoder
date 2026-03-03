@@ -77,8 +77,7 @@ ghci>
 
 ```haskell
 -- `iterate` は「同じ関数を繰り返し適用した結果のリスト」が欲し意図機の定番
-ghci > n = 4
-ghci > take (n+1) $ iterate (*2) 1 -- ２の累乗列
+ghci > take 5 $ iterate (*2) 1 -- ２の累乗列
 [1,2,4,8,16]
 ```
 

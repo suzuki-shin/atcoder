@@ -305,14 +305,14 @@ Q.empty Q.|> 3       -- 末尾に追加 (enqueue): fromList [3]
 5 Q.<| Q.singleton 3 -- 先頭に追加:           fromList [5,3]
 
 {----- 先頭の取り出し (dequeue) O(1) -----}
-case Q.viewl q of
-  Q.EmptyL    -> ...        -- キューが空
-  x Q.:< rest -> ...        -- x: 先頭要素, rest: 残り
+case q of
+  Q.Empty      -> ...        -- キューが空
+  x Q.:<| rest -> ...        -- x: 先頭要素, rest: 残り
 
 {----- 末尾の取り出し O(1) -----}
-case Q.viewr q of
-  Q.EmptyR    -> ...        -- キューが空
-  rest Q.:> x -> ...        -- x: 末尾要素, rest: 残り
+case q of
+  Q.Empty      -> ...        -- キューが空
+  rest Q.:|> x -> ...        -- x: 末尾要素, rest: 残り
 
 {----- その他の操作 -----}
 Q.length q            -- 長さ O(1)
@@ -326,16 +326,16 @@ solve (n, qs) = catMaybes mRes
   where
     (_, mRes) = mapAccumL f Q.empty qs
     f acc [1,x] = (acc Q.|> x, Nothing)   -- enqueue
-    f acc [2]   = case Q.viewl acc of
-      x Q.:< rest -> (rest, Just x)       -- dequeue & 出力
+    f acc [2]   = case acc of
+      x Q.:<| rest -> (rest, Just x)      -- dequeue & 出力
       _ -> error "empty"
     f _ _ = error "invalid"
 
 {----- 典型的な使い方: BFS -----}
 -- Bonsai の bfs 関数で使われているパターン
-let loop q = case Q.viewl q of
-      Q.EmptyL -> ...                     -- 探索終了
-      v Q.:< q' -> do
+let loop q = case q of
+      Q.Empty -> ...                      -- 探索終了
+      v Q.:<| q' -> do
         ...
         let q'' = q' Q.|> next            -- 次の頂点をenqueue
         loop q''

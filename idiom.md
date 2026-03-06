@@ -322,14 +322,13 @@ Q.null q              -- 空かどうか O(1)
 
 {----- 典型的な使い方: クエリ逐次処理 (mapAccumL) -----}
 -- 状態(キュー)を持ちながらクエリを処理し、出力はMaybeで表現
-solve (n, qs) = catMaybes mRes
+solve (_, qs) = catMaybes mRes
   where
     (_, mRes) = mapAccumL f Q.empty qs
-    f acc [1,x] = (acc Q.|> x, Nothing)   -- enqueue
-    f acc [2]   = case acc of
-      x Q.:<| rest -> (rest, Just x)      -- dequeue & 出力
-      _ -> error "empty"
-    f _ _ = error "invalid"
+    f :: Q.Seq Int -> [Int] -> (Q.Seq Int, Maybe Int)
+    f queue [1,x] = (queue Q.|> x, Nothing)   -- enqueue
+    f (h Q.:<| rest) [2] = (rest, Just h)      -- dequeue & 出力
+    f _ _ = error "unreach"
 
 {----- 典型的な使い方: BFS -----}
 -- Bonsai の bfs 関数で使われているパターン

@@ -113,8 +113,6 @@ solve n = chunksOf n res
       let maxI = minimum [r, c, n+1-r, n+1-c]
       in if odd maxI then '#' else '.'
 
-type Grid = UArray (Int, Int) Char
-
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
 

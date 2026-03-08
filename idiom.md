@@ -98,6 +98,23 @@ ghci> subGrid 2 (1,0) grid
 [[2,3],[5,6]]
 ```
 
+```haskell
+{----- all / and / any / or の使い分け -----}
+-- and  :: [Bool] -> Bool         — Bool のリストを受け取る
+-- all  :: (a -> Bool) -> [a] -> Bool  — 述語を受け取る（map + and のショートカット）
+-- or   :: [Bool] -> Bool
+-- any  :: (a -> Bool) -> [a] -> Bool  — 述語を受け取る（map + or のショートカット）
+
+ghci> and [True, True, False]
+False
+ghci> all even [2, 4, 6]
+True
+ghci> all even [2, 3, 6]
+False
+-- all f xs == and (map f xs)
+-- any f xs == or  (map f xs)
+```
+
 ## Map
 
 ```haskell

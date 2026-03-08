@@ -89,6 +89,15 @@ ghci> rotageR90 [[0,1,2],[3,4,5],[6,7,8]]
 [[6,3,0],[7,4,1],[8,5,2]]
 ```
 
+```haskell
+-- ２次元グリッドの切り出し(0-based index)
+subGrid :: Show a => Int -> (Int, Int) -> [[a]] -> [[a]]
+subGrid m (r, c) = map (take m . drop r) . (take m . drop c)
+ghci> grid = chunksOf 3 [1..9] :: [[Int]]
+ghci> subGrid 2 (1,0) grid
+[[2,3],[5,6]]
+```
+
 ## Map
 
 ```haskell

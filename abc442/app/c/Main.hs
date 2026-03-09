@@ -96,6 +96,10 @@ encode :: Codom -> [[O]]
 encode r = [r]
 -- encode = map (:[])
 
+{-
+@tags: [次数カウント 組み合わせ]
+@note: 各頂点iの査読者候補数はN-1-deg(i)。隣接リストは不要で次数だけ数えればC(N-1-deg(i),3)。mod不要なのでnCr(ModInt)を使わず直接計算。boxed Array [Int]でTLE→UArray Intで次数カウントに変更してAC
+-}
 {-# INLINE solve #-}
 solve :: Solver
 solve (n,m,xs) =

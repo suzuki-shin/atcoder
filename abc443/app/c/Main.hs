@@ -96,19 +96,22 @@ encode :: Codom -> [[O]]
 encode r = [[r]]
 -- encode = map (:[])
 
+{-
+  @tags: [シミュレーション 貪欲法]
+  @note: イベント列をfoldl'で順に処理。chokutterの開閉状態を追跡し、各開いてい
+  る区間の長さを合計する。閉じてから100秒後に再度開くルールに注意
+-}
 {-# INLINE solve #-}
 solve :: Solver
-solve (n,t,as) =
-  sum $ map (\(startT,endT) -> endT - startT) res
+solve (n,t,a0:as) = sumTime
   where
-    res :: [(Int,Int)]
-    res = foldl' f [] (as ++ [t])
-    f :: [(Int,Int)] -> Int -> [(Int,Int)]
-    f [] a = [(0,a)]
-    f vTimes@((_,vEnd):_) a =
-      if vEnd + 100 < min a t
-        then (vEnd+100, min a t):vTimes
-        else vTimes
+    (_, sumTime) = foldl' f (a0,a0) (as ++ [t])
+    f :: (Int, Int) -> Int -> (Int, Int)
+    f (endT,sumT) a =
+      if endT + 100 < min a t
+        then (min a t, min a t - (endT + 100) + sumT)
+        else (endT, sumT)
+solve (n,t,[]) = t
 
 
 main :: IO ()

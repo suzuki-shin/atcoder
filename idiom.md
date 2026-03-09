@@ -374,6 +374,12 @@ in loop (Q.singleton start)
 (b - a) mod 10
 ```
 
+```haskell
+-- n個の中から３つ選ぶ組み合わせの数
+comb3 :: Int -> Int
+comb3 k = k * (k-1) * (k-2) `div` 6
+```
+
 ## ループ
 
 ```haskell

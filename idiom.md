@@ -375,7 +375,13 @@ in loop (Q.singleton start)
 ```
 
 ```haskell
--- n個の中から３つ選ぶ組み合わせの数
+-- 組み合わせの数
+
+-- k個のなかから2個選ぶ組み合わせの数
+comb2 :: Int -> Int
+comb2 k = k * (k-1) `div` 2
+
+-- k個のなかから3個選ぶ組み合わせの数
 comb3 :: Int -> Int
 comb3 k = k * (k-1) * (k-2) `div` 6
 ```

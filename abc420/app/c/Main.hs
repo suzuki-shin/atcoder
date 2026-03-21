@@ -102,6 +102,10 @@ decode = \case
 encode :: Codom -> [[O]]
 encode = map (:[])
 
+{-
+@tags: [差分更新 mutableVector クエリ処理]
+@note: Σmin(A_k,B_k)を保持し、更新ごとに oldMin を引いて newMin を足す差分更新。A,BはVUMで破壊的に管理。foldMでクエリを順に処理。
+-}
 {-# INLINE solve #-}
 solve :: Solver
 solve (n, q, as0, bs0, qs) = runST $ do

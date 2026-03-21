@@ -258,6 +258,34 @@ nubOrd' :: (VUM.Unbox a, Ord a) => [a] -> [a]
 nubOrd' xs = (VU.toList . VU.uniq . VU.modify (VAI.sortBy compare) . VU.fromList) xs
 ```
 
+## Mutable Vector (VUM)
+
+```haskell
+{- foldM + VUM.read/VUM.write で状態更新しながらクエリ処理 -}
+-- パターン: immutable Vector を thaw して mutable にし、foldM でクエリを順に処理
+-- [Int] から直接 mutable にする場合は VU.unsafeThaw . VU.fromList（一時値なので安全）
+
+-- 例: 数列 A, B があり、クエリごとに要素を更新して Σmin(A_k, B_k) を出力 (ABC420 C)
+solve (n, q, as0, bs0, qs) = runST $ do
+  av <- VU.thaw as0           -- VU.Vector → VUM.MVector に変換 (O(N) コピー)
+  bv <- VU.thaw bs0
+  let initSum = VU.sum $ VU.zipWith min as0 bs0
+  reverse . snd <$> foldM (\(!s, acc) (c, x, v) -> do
+    let i = x - 1
+    a <- VUM.read av i         -- 現在の値を読む O(1)
+    b <- VUM.read bv i
+    let oldMin = min a b
+    case c of
+      'A' -> VUM.write av i v >> let s' = s - oldMin + min v b in return (s', s' : acc)  -- 書き換え O(1)
+      _   -> VUM.write bv i v >> let s' = s - oldMin + min a v in return (s', s' : acc)
+    ) (initSum, []) qs
+
+-- ポイント:
+-- ・アキュムレータに !s で BangPattern → 遅延蓄積による TLE 防止
+-- ・結果は逆順で溜まるので最後に reverse
+-- ・VU.thaw の代わりに VU.unsafeThaw を使うとコピー1回分節約できる
+```
+
 ## Maybe
 
 ```haskell

@@ -202,6 +202,43 @@ ghci>
 sum res -- 2
 ```
 
+### MArray(STUArray)
+```haskell
+{-
+問題文
+
+1,2,…,N の番号が付いた N 個の箱があります。最初は全ての箱が空です。
+
+これから Q 個のボールが順番にやってきます。
+高橋君は、数列 X=(X1​,X2​,…,XQ​) に従ってボールを箱に入れます。
+具体的には、 i 番目にやってきたボールに次の処理を行います。
+
+    Xi​≥1 である場合 : このボールを、箱 Xi​ に入れる。
+    Xi​=0 である場合 : このボールを、現在入っているボールが最も少ない箱のうち番号が最小である箱に入れる。
+
+それぞれのボールをどの箱に入れたかを求めてください。
+
+制約
+
+    入力は全て整数
+    1≤N≤100
+    1≤Q≤100
+    0≤Xi​≤N
+-}
+{-# INLINE solve #-}
+solve :: Solver
+solve (n,q,as) = runST $ do
+  cnt <- newArray (1,n) 0 :: ST s (STUArray s Int Int)
+  forM as $ \x -> do
+    i <- if x /= 0
+      then pure x
+      else do
+        (frozen :: UArray Int Int) <- freeze cnt
+        pure $ fst $ minimumBy (comparing snd) $ assocs frozen
+    modifyArray cnt i (+1)
+    pure i
+```
+
 ## Vector
 
 ```haskell
@@ -259,7 +296,41 @@ nubOrd' xs = (VU.toList . VU.uniq . VU.modify (VAI.sortBy compare) . VU.fromList
 ```
 
 ## Mutable Vector (VUM)
+```haskell
+{-
+問題文
 
+1,2,…,N の番号が付いた N 個の箱があります。最初は全ての箱が空です。
+
+これから Q 個のボールが順番にやってきます。
+高橋君は、数列 X=(X1​,X2​,…,XQ​) に従ってボールを箱に入れます。
+具体的には、 i 番目にやってきたボールに次の処理を行います。
+
+    Xi​≥1 である場合 : このボールを、箱 Xi​ に入れる。
+    Xi​=0 である場合 : このボールを、現在入っているボールが最も少ない箱のうち番号が最小である箱に入れる。
+
+それぞれのボールをどの箱に入れたかを求めてください。
+
+制約
+
+    入力は全て整数
+    1≤N≤100
+    1≤Q≤100
+    0≤Xi​≤N
+-}
+{-# INLINE solve #-}
+solve :: Solver
+solve (n,q,as) = runST $ do
+  cnt <- VUM.replicate n (0 :: Int)
+  forM as $ \x -> do
+    i <- if x /= 0
+      then pure x
+      else do
+        frozen <- VU.freeze cnt
+        pure $ VU.minIndex frozen + 1
+    VUM.modify cnt (+1) (i-1)
+    pure i
+```
 ```haskell
 {- foldM + VUM.read/VUM.write で状態更新しながらクエリ処理 -}
 -- パターン: immutable Vector を thaw して mutable にし、foldM でクエリを順に処理

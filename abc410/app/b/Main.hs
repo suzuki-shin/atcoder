@@ -32,7 +32,7 @@ import Control.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
-import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray)
+import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray, modifyArray, freeze)
 import Data.Array.ST (STArray, STUArray, runSTArray, runSTUArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
@@ -63,6 +63,7 @@ import Data.Vector.Unboxed.Mutable qualified as VUM
 import Debug.Trace qualified as Debug
 import Text.Printf
 import qualified AtCoder.Extra.Graph as IM
+import Data.Array.Base (UArray(UArray))
 
 {- ORMOLU_DISABLE -}
 debug :: Bool
@@ -98,18 +99,42 @@ encode :: Codom -> [[O]]
 encode r = [r]
 -- encode = map (:[])
 
+{-
+問題文
+
+1,2,…,N の番号が付いた N 個の箱があります。最初は全ての箱が空です。
+
+これから Q 個のボールが順番にやってきます。
+高橋君は、数列 X=(X1​,X2​,…,XQ​) に従ってボールを箱に入れます。
+具体的には、 i 番目にやってきたボールに次の処理を行います。
+
+    Xi​≥1 である場合 : このボールを、箱 Xi​ に入れる。
+    Xi​=0 である場合 : このボールを、現在入っているボールが最も少ない箱のうち番号が最小である箱に入れる。
+
+それぞれのボールをどの箱に入れたかを求めてください。
+
+制約
+
+    入力は全て整数
+    1≤N≤100
+    1≤Q≤100
+    0≤Xi​≤N
+-}
 {-# INLINE solve #-}
 solve :: Solver
 solve (n,q,as) = trace (show res)
-  snd res
+  res
   where
-    initAcc :: UArray Int Int
-    initAcc = array (1,n) [(i,0)|i<-[1..n]]
-    res = mapAccumL f initAcc as
-    f acc 0 = let (i, v) = minimumBy (comparing snd) $ assocs acc in (acc // [(i, v + 1)], i)
-    f acc a = (acc // [(a, v+1)], a)
-      where
-        v = acc ! a
+    res = runST $ do
+      cnt <- newArray (1,n) 0 :: ST s (STUArray s Int Int)
+      forM as $ \x -> do
+        i <- if x /= 0
+          then pure x
+          else do
+            (frozen :: UArray Int Int) <- freeze cnt
+            pure $ fst $ minimumBy (comparing snd) $ assocs frozen
+        modifyArray cnt i (+1)
+        pure i
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)

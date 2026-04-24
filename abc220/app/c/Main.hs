@@ -32,7 +32,7 @@ import Control.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Array (Array)
 import Data.Array.IArray
-import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray, modifyArray, freeze)
+import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray)
 import Data.Array.ST (STArray, STUArray, runSTArray, runSTUArray)
 import Data.Array.Unboxed (UArray)
 import Data.Bifunctor (bimap)
@@ -62,8 +62,6 @@ import Data.Vector.Unboxed qualified as VU
 import Data.Vector.Unboxed.Mutable qualified as VUM
 import Debug.Trace qualified as Debug
 import Text.Printf
-import qualified AtCoder.Extra.Graph as IM
-import Data.Array.Base (UArray(UArray))
 
 {- ORMOLU_DISABLE -}
 debug :: Bool
@@ -83,58 +81,52 @@ type I = Int
 
 type O = Int
 
-type Dom   = (Int, Int, [Int])
-type Codom = [Int]
+type Dom   = (Int, [Int], Int)
+type Codom = Int
 
 type Solver = Dom -> Codom
 
 {-# INLINE decode #-}
 decode :: [[I]] -> Dom
 decode = \case
-  [n,q] : as : _ -> (n, q, as)
+  [n] : as : [x] : _ -> (n, as, x)
   _ -> invalid $ "toDom: " ++ show @Int __LINE__
 
 {-# INLINE encode #-}
 encode :: Codom -> [[O]]
-encode r = [r]
+encode r = [[r]]
 -- encode = map (:[])
 
+{-# INLINE solve #-}
 {-
+
 問題文
 
-1,2,…,N の番号が付いた N 個の箱があります。最初は全ての箱が空です。
+長さ N の正整数のみからなる数列 A=(A1​,…,AN​) があります。
+A を 10^100 回連結した数列を数列 B とします。
 
-これから Q 個のボールが順番にやってきます。
-高橋君は、数列 X=(X1​,X2​,…,XQ​) に従ってボールを箱に入れます。
-具体的には、 i 番目にやってきたボールに次の処理を行います。
+B の項を前から順に足したとき、和が初めて X を超えるのは何項目まで足したときですか？
+すなわち、以下の式を満たす最小の整数 k を求めてください。
 
-    Xi​≥1 である場合 : このボールを、箱 Xi​ に入れる。
-    Xi​=0 である場合 : このボールを、現在入っているボールが最も少ない箱のうち番号が最小である箱に入れる。
-
-それぞれのボールをどの箱に入れたかを求めてください。
-
+i=1∑k​Bi​>X
 制約
 
+    1≤N≤10^5
+    1≤Ai​≤10^9
+    1≤X≤10^18
     入力は全て整数
-    1≤N≤100
-    1≤Q≤100
-    0≤Xi​≤N
+---
+
+sumAs * k > x
+sumAs * (k-1) < x
+
 -}
-{-# INLINE solve #-}
 solve :: Solver
-solve (n,q,as) = trace (show res)
-  res
+solve (n,as,x) = k
   where
-    res = runST $ do
-      cnt <- VUM.replicate n (0 :: Int)
-      forM as $ \x -> do
-        i <- if x >= 1
-          then do pure x
-          else do
-            frozen <- VU.freeze cnt
-            pure $ VU.minIndex frozen + 1
-        VUM.modify cnt (+1) (i-1)
-        pure i
+    (l,rest) = x `divMod` sum as
+    m = fromJust $ findIndex (> rest) $ scanl' (+) 0 as
+    k = l * n + m
 
 main :: IO ()
 main = B.interact (detokenize . encode . solve . decode . entokenize)
@@ -668,12 +660,12 @@ instance Semigroup (JoinList a) where
 instance Monoid (JoinList a) where
   mempty = Empty
 
-toList :: JoinList a -> [a]
-toList jl = go jl []
-  where
-    go Empty acc = acc
-    go (Single x) acc = x : acc
-    go (Append l r) acc = go l (go r acc)
+instance Foldable JoinList where
+  foldr f z = go
+    where
+      go Empty = z
+      go (Single x) = f x z
+      go (Append l r) = foldr f (foldr f z r) l
 
 data DPProblem p sc = DPProblem
   { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序

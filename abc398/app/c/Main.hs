@@ -131,8 +131,8 @@ solve :: Solver
 solve (n,as) =
   snd $ maximum $ (minBound, -1) : candidates
   where
-    cnts = IM.fromListWith (+) $ map (,1 :: Int) as
-    candidates = [(v,i)| (i,v) <- zip [(1::Int)..] as, cnts IM.! v == 1]
+    freq = IM.fromListWith (+) $ map (,1 :: Int) as
+    candidates = [(v,i)| (i,v) <- zip [(1::Int)..] as, freq IM.! v == 1]
 
 
 main :: IO ()

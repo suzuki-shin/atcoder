@@ -1,0 +1,944 @@
+{-# LANGUAGE GHC2021 #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LexicalNegation #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE NPlusKPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoStarIsType #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# HLINT ignore "Unused LANGUAGE pragma" #-}
+
+module Main where
+
+import AtCoder.Extra.Bisect qualified as AB
+import AtCoder.SegTree qualified as Seg
+import AtCoder.Dsu qualified as Dsu
+import Control.Applicative
+import Control.Arrow hiding ((<+>), loop)
+import Control.Arrow qualified as Arrow
+import Control.Monad
+import Control.Monad.ST (ST, runST)
+import Data.Array (Array)
+import Data.Array.IArray
+import Data.Array.MArray (MArray, newArray, newArray_, readArray, writeArray)
+import Data.Array.ST (STArray, STUArray, runSTArray, runSTUArray)
+import Data.Array.Unboxed (UArray)
+import Data.Bifunctor (bimap)
+import Data.Bits
+import Data.Bool
+import Data.ByteString.Char8 qualified as B
+import Data.Char
+import Data.Function
+import Data.HashMap.Strict qualified as HM
+import Data.Heap qualified as H
+import Data.IntMap.Strict qualified as IM
+import Data.IntSet qualified as IS
+import Data.Ix
+import Data.List
+import Data.List.Extra
+import Data.Map.Strict qualified as M
+import Data.Maybe
+import Data.Ord
+import Data.Sequence qualified as Q
+import Data.Set qualified as S
+import Data.Tree qualified as T
+import Data.Vector qualified as V
+import Data.Vector.Algorithms.Intro qualified as VAI
+import Data.Vector.Fusion.Bundle qualified as VFB
+import Data.Vector.Generic qualified as VG
+import Data.Vector.Unboxed qualified as VU
+import Data.Vector.Unboxed.Mutable qualified as VUM
+import Debug.Trace qualified as Debug
+import Text.Printf
+
+{- ORMOLU_DISABLE -}
+debug :: Bool
+
+#ifdef ATCODER
+
+debug = False
+
+#else
+
+debug = True
+
+#endif
+{- ORMOLU_ENABLE -}
+
+type I = Int
+
+type O = Int
+
+type Dom   = (Int, [Int], [Int])
+type Codom = Int
+
+type Solver = Dom -> Codom
+
+{-# INLINE decode #-}
+decode :: [[I]] -> Dom
+decode = \case
+  [n] : as : ws : _ -> (n, as, ws)
+  _ -> invalid $ "toDom: " ++ show @Int __LINE__
+
+{-# INLINE encode #-}
+encode :: Codom -> [[O]]
+encode r = [[r]]
+-- encode = map (:[])
+
+{-# INLINE solve #-}
+{-
+
+問題文
+
+1 から N の番号がついた N 個の箱と 1 から N の番号がついた N 個の荷物があります。荷物 i (1≤i≤N) は箱 Ai​ の中にあり、重さは Wi​ です。
+
+あなたは荷物を一つ選び、他の箱の中に移動させる操作を 0 回以上繰り返し行うことができます。1 回の操作で移動させる荷物の重さが w であるとき、w のコストがかかります。
+
+全ての箱に荷物が 1 つずつ入っている状態にするためにかかるコストの総和の最小値を求めてください。
+制約
+
+    1≤N≤10^5
+    1≤Ai​≤N (1≤i≤N)
+    1≤Wi​≤10^4 (1≤i≤N)
+    入力はすべて整数
+---
+
+複数荷物が入っている箱から、最大の重さの荷物以外を動かすことになる。
+
+-}
+solve :: Solver
+solve (n,as,ws) =
+  sum ws - sum (IM.fromListWith max $ zip as ws)
+
+main :: IO ()
+main = B.interact (detokenize . encode . solve . decode . entokenize)
+
+{- Decode Patterns -}
+{-
+-- Pattern: Grid (H×W)
+--  Input:  H W
+--          S_{1,1}...S_{1,W}
+--          ...
+--          S_{H,1}...S_{H,W}
+type I = Char
+type Dom = (Int, Int, [[Char]])
+decode = \case
+  nm : grid ->
+    let [n, m] = map (read @Int) $ words nm
+     in (n, m, grid)
+  _x -> invalid $ "toDom: " ++ show @Int __LINE__
+-- Pattern: Int & String
+-- Input: 5
+--        WEEWW
+type I = Char
+type Dom (Int, String)
+decode :: [[I]] -> Dom
+decode = \ case
+    n:as:_ -> (read n, as)
+    _   -> invalid $ "toDom: " ++ show @Int __LINE__
+-}
+{- Encode Pattern -}
+{-
+Pattern: リストを改行区切りにして出力
+Output: win
+        draw
+        lose
+type O = String
+type Codom = [String]
+encode = map (:[])
+-}
+
+class AsToken a where
+  readB :: B.ByteString -> a
+  readBs :: B.ByteString -> [a]
+  readBs = map readB . B.words
+  entokenize :: B.ByteString -> [[a]]
+  entokenize = map readBs . B.lines
+
+  showB :: a -> B.ByteString
+  showBs :: [a] -> B.ByteString
+  showBs = B.unwords . map showB
+  detokenize :: [[a]] -> B.ByteString
+  detokenize = B.unlines . map showBs
+
+instance AsToken B.ByteString where
+  readB = id
+  showB = id
+
+instance AsToken Int where
+  readB = readInt
+  showB = showInt
+
+instance AsToken Integer where
+  readB = readInteger
+  showB = showInteger
+
+instance AsToken String where
+  readB = readStr
+  showB = showStr
+
+instance AsToken Double where
+  readB = readDbl
+  showB = showDbl
+
+instance AsToken Char where
+  readB = B.head
+  showB = B.singleton
+  readBs = B.unpack
+  showBs = B.pack
+
+readInt :: B.ByteString -> Int
+readInt = fst . fromJust . B.readInt
+
+showInt :: Int -> B.ByteString
+showInt = B.pack . show
+
+readInteger :: B.ByteString -> Integer
+readInteger = fst . fromJust . B.readInteger
+
+showInteger :: Integer -> B.ByteString
+showInteger = B.pack . show
+
+readStr :: B.ByteString -> String
+readStr = B.unpack
+
+showStr :: String -> B.ByteString
+showStr = B.pack
+
+readDbl :: B.ByteString -> Double
+readDbl = read . B.unpack
+
+showDbl :: Double -> B.ByteString
+showDbl = B.pack . show
+
+{- debug -}
+trace :: String -> a -> a
+trace
+  | debug = Debug.trace
+  | otherwise = const id
+
+tracing :: (Show a) => a -> a
+tracing = trace . show <*> id
+
+{- error -}
+impossible :: String -> a
+impossible msg = error $ msg ++ ", impossible"
+
+invalid :: String -> a
+invalid msg = error $ msg ++ ", invalid input"
+
+{- Start Bonsai -}
+
+{- 古いAtcoder環境だとdata-defaultがないため -}
+class Default a where
+  def :: a
+
+instance Default Int where def = 0
+
+instance Default Double where def = 0.0
+
+instance Default Bool where def = False
+
+instance Default [a] where def = []
+
+instance Default () where def = ()
+
+instance (Default a, Default b) => Default (a, b) where def = (def, def)
+
+instance (Default a, Default b, Default c) => Default (a, b, c) where def = (def, def, def)
+
+{-# INLINE vLength #-}
+vLength :: (VG.Vector v e) => v e -> Int
+vLength = VFB.length . VG.stream
+
+{-# INLINE yn #-}
+yn :: Bool -> String
+yn = bool "No" "Yes"
+
+{- 累積和 -}
+
+-- | 1次元の累積和（Vector版）を作成する
+-- >>> csum1 $ VU.generate 4 (+1)
+-- [0,1,3,6,10]
+{-# INLINE csum1 #-}
+csum1 :: (Num a, VU.Unbox a) => VU.Vector a -> VU.Vector a
+csum1 = VU.scanl' (+) 0
+
+-- | 1 次元の累積和配列を元に区間和を求める。(1-based。問題の(l,r)をそのまま渡せば良い)
+-- >>> csum +! (2, 3)
+-- 5
+{-# INLINE (+!) #-}
+(+!) :: (Num a, VU.Unbox a) => VU.Vector a -> (Int, Int) -> a
+(+!) csum (!l, !r) = csum VG.! r - csum VG.! (l - 1)
+
+-- | いもす法（Array版）
+-- >>> let lrs = [(2,3),(3,6),(5,7),(3,7),(1,5)] -- [(li, ri)] 参加者iがli日目からri日目まで参加する
+-- >>> imosA 8 lrs
+-- [1,2,4,3,4,3,2,0]
+{-# INLINE imosA #-}
+imosA :: Int -> [(Int, Int)] -> [Int]
+imosA d lrs = elems result
+  where
+    diffArray :: UArray Int Int
+    diffArray =
+      accumArray (+) 0 (0, d + 1) $
+        concatMap (\(l, r) -> [(l, 1), (r + 1, -1)]) lrs
+    -- 累積和
+    result :: UArray Int Int
+    result = listArray (1, d) $ drop 2 $ scanl (+) 0 (elems diffArray)
+
+-- | 2 次元の累積和配列を作成する。
+-- 入力: (H, W) と HxW のグリッドデータ
+-- 出力: ((0,0), (H,W)) の範囲を持つ累積和配列
+-- >>> csum2 (2,2) [[1,2],[3,4]] :: UArray (Int,Int) Int
+-- array ((0,0),(2,2)) [
+--  ((0,0),0),((0,1),0),((0,2),0),
+--  ((1,0),0),((1,1),1),((1,2),3),
+--  ((2,0),0),((2,1),4),((2,2),10)]
+csum2 :: (IArray UArray e, Num e) => (Int, Int) -> [[e]] -> UArray (Int, Int) e
+csum2 (h, w) rows = listArray ((0, 0), (h, w)) flatList
+  where
+    rowSums = map (scanl (+) 0) rows
+    zeroRow = replicate (w + 1) 0
+    colSums = scanl (zipWith (+)) zeroRow rowSums
+    flatList = concat colSums
+{-# INLINE csum2 #-}
+
+-- | 2 次元の累積和配列を元に矩形和を求める。 0-based index
+-- 左上 (r1, c1), 右下 (r2, c2)
+-- >>> let csum = csum2 (2,2) [[1,2],[3,4]] :: UArray (Int,Int) Int
+-- >>> csum +!! ((0,0),(1,0))
+-- 4
+(+!!) :: (IArray UArray e, Num e) => UArray (Int, Int) e -> ((Int, Int), (Int, Int)) -> e
+(+!!) ary ((r1, c1), (r2, c2)) =
+  ary ! (r2 + 1, c2 + 1) - ary ! (r1, c2 + 1) - ary ! (r2 + 1, c1) + ary ! (r1, c1)
+{-# INLINE (+!!) #-}
+
+{- しゃくとり法 -}
+{-# INLINE shakutori #-}
+-- p: 条件を満たすかどうかを判定する関数 (l -> r -> Bool)
+-- lls: 左端 L が指す要素以降のリスト
+-- rrs: 右端 R が指す要素以降のリスト
+-- len: 現在の条件を満たす区間 [L, R) の要素数 (Rを含まない)
+shakutori :: (Int -> Int -> Bool) -> [Int] -> [Int] -> Int -> [Int]
+-- 右端 R がリストの終端に達した場合
+-- 以降のすべての L について、残りの len がそのまま解になる
+-- L を進めるごとに len を減らしていく
+shakutori p (_ : ls) [] len = len : shakutori p ls [] (len - 1)
+shakutori p lls@(l : ls) rrs@(r : rs) len
+  -- 条件を満たすなら、右端 R を右へ進める
+  -- 区間の長さ len は +1 される
+  | p l r = shakutori p lls rs (len + 1)
+  -- 条件を満たさなくなった場合、現在の L に対するペアの数は len 個 (A[L]...A[R-1])
+  -- len を結果リストに追加し、左端 L を右へ進める
+  -- L が進むと区間の長さ len は -1 される
+  | otherwise = len : shakutori p ls rrs (len - 1)
+-- 左端 L が終端に達したら終了
+shakutori _ _ _ _ = []
+
+{- グラフ -}
+
+type Weight = Int
+
+type Graph = V.Vector (VU.Vector (Int, Weight))
+
+-- | (r, c) を 1次元IDに変換する（0-indexed）。第1引数は列数 W。
+-- >>> toIdx 5 (2, 3)  -- 幅5のグリッドで (行2, 列3) → 13
+-- 13
+{-# INLINE toIdx #-}
+toIdx :: Int -> (Int, Int) -> Int
+toIdx w (!r, !c) = r * w + c
+
+-- | 1次元IDを (r, c) に変換する（0-indexed）。第1引数は列数 W。
+-- >>> fromIdx 5 13  -- 幅5のグリッドで ID 13 → (行2, 列3)
+-- (2,3)
+{-# INLINE fromIdx #-}
+fromIdx :: Int -> Int -> (Int, Int)
+fromIdx w !v = (v `quot` w, v `rem` w)
+
+-- | グリッドの上下左右の隣接座標を列挙する（範囲外は除外）
+{-# INLINE adj4 #-}
+adj4 :: Int -> Int -> (Int, Int) -> [(Int, Int)]
+adj4 h w (!r, !c) =
+  filter inside [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]
+  where
+    inside (!rr, !cc) = 0 <= rr && rr < h && 0 <= cc && cc < w
+
+-- | 辺リストから隣接リストを構築する（有向。無向は buildUGraph を使う）
+{-# INLINE buildGraph #-}
+buildGraph :: Int -> [(Int, Int, Weight)] -> Graph
+buildGraph n edges = runST $ do
+  deg <- VUM.replicate n (0 :: Int)
+  forM_ edges $ \(!u, _, _) -> VUM.modify deg (+ 1) u
+  deg' <- VU.freeze deg
+
+  offsets <- VUM.new (n + 1)
+  VUM.write offsets 0 0
+  forM_ [0 .. n - 1] $ \i -> do
+    let !prev = deg' VU.! i
+    !acc <- VUM.read offsets i
+    VUM.write offsets (i + 1) (acc + prev)
+  offs <- VU.freeze offsets
+
+  buf <- VUM.new (VU.last offs) :: ST s (VUM.MVector s (Int, Weight))
+  cursor <- VU.thaw offs
+  forM_ edges $ \(!u, !v, !w) -> do
+    !idx <- VUM.read cursor u
+    VUM.write buf idx (v, w)
+    VUM.write cursor u (idx + 1)
+  frozen <- VU.freeze buf
+  pure $ V.generate n $ \i ->
+    let !l = offs VU.! i
+        !r = offs VU.! (i + 1)
+     in VU.slice l (r - l) frozen
+
+-- | 無向グラフ用。各辺を自動で双方向に展開して隣接リストを構築する
+{-# INLINE buildUGraph #-}
+buildUGraph :: Int -> [(Int, Int, Weight)] -> Graph
+buildUGraph n edges =
+  buildGraph n $ concatMap (\(u, v, w) -> [(u, v, w), (v, u, w)]) edges
+
+-- | BFS で始点からの最短距離（重みなし）を求める
+{-# INLINE bfs #-}
+bfs :: Graph -> Int -> VU.Vector Int
+bfs g s = runST $ do
+  let n = V.length g
+  dist <- VUM.replicate n (-1 :: Int)
+  VUM.write dist s 0
+  let loop q = case Q.viewl q of
+        Q.EmptyL -> VU.freeze dist
+        v Q.:< q' -> do
+          !dv <- VUM.read dist v
+          let edges = g V.! v
+          q'' <-
+            VU.foldM'
+              ( \qq (!to, _) -> do
+                  !d <- VUM.read dist to
+                  if d /= -1
+                    then pure qq
+                    else do
+                      VUM.write dist to (dv + 1)
+                      pure (qq Q.|> to)
+              )
+              q'
+              edges
+          loop q''
+  loop (Q.singleton s)
+
+-- maxBound を直接使うと d + w がオーバーフローするため、十分大きい値で代用
+{-# INLINE inf #-}
+inf :: Int
+inf = maxBound `quot` 4
+
+-- | 到達不能なら True
+{-# INLINE isUnreachable #-}
+isUnreachable :: Int -> Bool
+isUnreachable d = d >= inf
+
+-- | 到達不能を -1 に変換
+{-# INLINE unreachableTo #-}
+unreachableTo :: Int -> Int -> Int
+unreachableTo fallback d
+  | isUnreachable d = fallback
+  | otherwise = d
+
+-- | Dijkstra で始点からの最短距離を求める（非負重み）
+{-# INLINE dijkstra #-}
+dijkstra :: Graph -> Int -> VU.Vector Int
+dijkstra g s = runST $ do
+  let n = V.length g
+  dist <- VUM.replicate n (inf :: Int)
+  VUM.write dist s 0
+  let loop heap = case H.viewMin heap of
+        Nothing -> VU.freeze dist
+        Just (H.Entry d v, heap') -> do
+          !dv <- VUM.read dist v
+          -- ヒープの距離が現在の最短距離と一致しない場合、
+          -- すでにより短い経路で更新済みなのでスキップ（Lazy Deletion）
+          if d /= dv
+            then loop heap'
+            else do
+              let edges = g V.! v
+              heap'' <-
+                VU.foldM'
+                  ( \h (!to, !w) -> do
+                      let !nd = d + w
+                      !dt <- VUM.read dist to
+                      if nd < dt
+                        then do
+                          VUM.write dist to nd
+                          pure (H.insert (H.Entry nd to) h)
+                        else pure h
+                  )
+                  heap'
+                  edges
+              loop heap''
+  loop (H.singleton (H.Entry 0 s))
+
+{- DP -}
+-- https://zenn.dev/osushi0x/articles/198bce676e2841#%E5%8B%95%E7%9A%84%E8%A8%88%E7%94%BB%E6%B3%95%E3%81%AB%E5%85%B1%E9%80%9A%E3%81%99%E3%82%8B%E6%A7%8B%E9%80%A0%E3%81%AF%E5%8D%8A%E7%92%B0%E3%81%A7%E3%81%82%E3%82%8B
+class Semiring s where
+  (<+>) :: s -> s -> s
+  (<.>) :: s -> s -> s
+  zero :: s
+  one :: s
+
+newtype MaxPlus = MaxPlus {unMaxPlus :: Int} deriving (Eq, Ord, Show)
+
+newtype MinPlus = MinPlus {unMinPlus :: Int} deriving (Eq, Ord, Show)
+
+newtype Boolean = Boolean {unBoolean :: Bool} deriving (Eq, Ord, Show)
+
+-- 通常の数え上げ（Int）
+newtype Count = Count {getCount :: Int} deriving (Eq, Show)
+
+instance Semiring MaxPlus where
+  {-# INLINE (<+>) #-}
+  (MaxPlus v1) <+> (MaxPlus v2) = MaxPlus (max v1 v2)
+  {-# INLINE (<.>) #-}
+  t1@(MaxPlus v1) <.> t2@(MaxPlus v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = MaxPlus (v1 + v2)
+  {-# INLINE zero #-}
+  zero = MaxPlus minBound
+  {-# INLINE one #-}
+  one = MaxPlus 0
+
+instance Semiring MinPlus where
+  {-# INLINE (<+>) #-}
+  (MinPlus v1) <+> (MinPlus v2) = MinPlus (min v1 v2)
+  {-# INLINE (<.>) #-}
+  t1@(MinPlus v1) <.> t2@(MinPlus v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = MinPlus (v1 + v2)
+  {-# INLINE zero #-}
+  zero = MinPlus maxBound
+  {-# INLINE one #-}
+  one = MinPlus 0
+
+instance Semiring Boolean where
+  {-# INLINE (<+>) #-}
+  (Boolean v1) <+> (Boolean v2) = Boolean (v1 || v2)
+  {-# INLINE (<.>) #-}
+  t1@(Boolean v1) <.> t2@(Boolean v2)
+    | t1 == zero = zero
+    | t2 == zero = zero
+    | otherwise = Boolean (v1 && v2)
+  {-# INLINE zero #-}
+  zero = Boolean False
+  {-# INLINE one #-}
+  one = Boolean True
+
+instance Semiring Count where
+  {-# INLINE (<+>) #-}
+  Count a <+> Count b = Count (a + b) -- 足し算
+  {-# INLINE (<.>) #-}
+  Count a <.> Count b = Count (a * b) -- 掛け算
+  {-# INLINE zero #-}
+  zero = Count 0
+  {-# INLINE one #-}
+  one = Count 1
+
+-- 確率（Double）
+newtype Prob = Prob {getProb :: Double} deriving (Eq, Show)
+
+instance Semiring Prob where
+  {-# INLINE (<+>) #-}
+  Prob a <+> Prob b = Prob (a + b)
+  {-# INLINE (<.>) #-}
+  Prob a <.> Prob b = Prob (a * b)
+  {-# INLINE zero #-}
+  zero = Prob 0.0
+  {-# INLINE one #-}
+  one = Prob 1.0
+
+-- XxxWithRoute は交換法則を満たさないため厳密な半環ではない。そのため以下の注意点がある
+-- 左側優先:
+--   スコアが同点 (@s1 == s2@) の場合、演算の__左側（先に計算された方）__の経路が採用される
+--   したがって、最短経路が複数存在する場合、どの経路が選ばれるかは探索順序に依存する
+-- 零化の不成立:
+--   @x <.> zero@ が完全な @zero@ （経路情報なし）にならない場合がありますが、
+--   DPの最適化プロセス（<+>）で自然に淘汰されるため、実用上の計算結果には影響しないはず
+
+data MinPlusWithRoute s p = MinPlusWithRoute !s (JoinList p)
+  deriving (Show, Eq)
+
+instance (Ord s, Semiring s) => Semiring (MinPlusWithRoute s p) where
+  -- ※ s1 == s2 の場合、左側（先に計算した方）の経路が優先されます（Left-biased）。
+  {-# INLINE (<+>) #-}
+  (MinPlusWithRoute s1 r1) <+> (MinPlusWithRoute s2 r2)
+    | s1 <= s2 = MinPlusWithRoute s1 r1
+    | otherwise = MinPlusWithRoute s2 r2
+
+  {-# INLINE (<.>) #-}
+  (MinPlusWithRoute s1 r1) <.> (MinPlusWithRoute s2 r2) =
+    MinPlusWithRoute (s1 <.> s2) (r1 <> r2)
+
+  {-# INLINE zero #-}
+  zero = MinPlusWithRoute zero mempty
+  {-# INLINE one #-}
+  one = MinPlusWithRoute one mempty
+
+-- | 最大化問題用の経路復元付きラッパー
+-- Semiring s の演算を行いつつ、経路 p の履歴を結合・選択します。
+data MaxPlusWithRoute s p = MaxPlusWithRoute !s (JoinList p)
+  deriving (Show, Eq)
+
+instance (Ord s, Semiring s) => Semiring (MaxPlusWithRoute s p) where
+  -- ※ s1 == s2 の場合、左側（先に計算した方）の経路が優先されます（Left-biased）。
+  {-# INLINE (<+>) #-}
+  (MaxPlusWithRoute s1 r1) <+> (MaxPlusWithRoute s2 r2)
+    | s1 >= s2 = MaxPlusWithRoute s1 r1
+    | otherwise = MaxPlusWithRoute s2 r2
+
+  {-# INLINE (<.>) #-}
+  (MaxPlusWithRoute s1 r1) <.> (MaxPlusWithRoute s2 r2) =
+    MaxPlusWithRoute (s1 <.> s2) (r1 <> r2)
+
+  {-# INLINE zero #-}
+  zero = MaxPlusWithRoute zero mempty
+  {-# INLINE one #-}
+  one = MaxPlusWithRoute one mempty
+
+-- | 到達可能性判定（Boolean）における経路復元付き型
+data BooleanWithRoute p = BooleanWithRoute !Bool (JoinList p)
+  deriving (Show, Eq)
+
+instance Semiring (BooleanWithRoute p) where
+  -- 左側が到達可能(True)なら即採用（左側優先）
+  -- 左がダメで右が到達可能なら右を採用。両方ダメならFalse
+  {-# INLINE (<+>) #-}
+  lhs@(BooleanWithRoute True _) <+> _ = lhs
+  _ <+> rhs = rhs
+
+  -- 両方が到達可能(True)な場合のみ、経路を連結して True とする
+  -- どちらかが False なら、結果も False (zero) になる
+  {-# INLINE (<.>) #-}
+  (BooleanWithRoute True r1) <.> (BooleanWithRoute True r2) = BooleanWithRoute True (r1 <> r2)
+  _ <.> _ = zero
+
+  -- \| 到達不能（False）
+  {-# INLINE zero #-}
+  zero = BooleanWithRoute False Empty
+
+  -- \| 到達可能（True, 経路なし）
+  {-# INLINE one #-}
+  one = BooleanWithRoute True Empty
+
+-- | 結合がO(1)のデータ構造。ListにするのはO(N)
+data JoinList a
+  = Empty
+  | Single !a
+  | Append (JoinList a) (JoinList a)
+  deriving (Show, Eq)
+
+instance Semigroup (JoinList a) where
+  Empty <> b = b
+  a <> Empty = a
+  a <> b = Append a b
+
+instance Monoid (JoinList a) where
+  mempty = Empty
+
+instance Foldable JoinList where
+  foldr f z = go
+    where
+      go Empty = z
+      go (Single x) = f x z
+      go (Append l r) = foldr f (foldr f z r) l
+
+data DPProblem p sc = DPProblem
+  { start :: p, -- 計算（メモ化再帰）を開始したい状態（例: dp[N] の N）。Nへ行くには->N-1が、、という順序
+    getRange :: (p, p), -- 状態 p のとりうる範囲（メモ化テーブルのサイズ用）
+    isTrivial :: p -> Maybe sc, -- 基底条件（漸化式の終了条件）
+    subproblems :: p -> [(sc, p)] -- 遷移（部分問題への分解）
+  }
+
+-- ex)
+-- n = 5
+-- as = listArray (2,n) [2,4,1,3]
+-- bs = listArray (3,n) [5,3,7]
+-- dp :: (Array Int Int, Array Int Int, Int) -> DPProblem Int MinPlus
+-- dp (as, bs, n) = DPProblem {...}
+-- solve (n, as, bs) = unMinPlus $ runST $ dpSolve $ dp (as, bs, n)
+
+{-# INLINE dpSolve #-}
+dpSolve :: forall i sc s. (Semiring sc, Ix i) => DPProblem i sc -> ST s sc
+dpSolve dp = do
+  let rng = getRange dp
+  memo <- newArray_ rng :: ST s (STArray s i sc)
+  visited <- newArray rng False :: ST s (STUArray s i Bool)
+
+  go (start dp) memo visited
+  where
+    go p memo visited
+      | Just val <- isTrivial dp p = return val
+      | otherwise = do
+          isVisited <- readArray visited p
+          if isVisited
+            then readArray memo p
+            else do
+              let f acc (s, sp) = do
+                    v <- go sp memo visited
+                    return $! acc <+> (s <.> v)
+
+              ret <- foldM f zero (subproblems dp p)
+              writeArray memo p ret
+              writeArray visited p True
+              return ret
+
+-- | 2次元配列から矩形領域を切り出し、インデックスを (0,0) 起点にリベースする
+subArray2Rebased :: (IArray a e) => ((Int, Int), (Int, Int)) -> a (Int, Int) e -> a (Int, Int) e
+subArray2Rebased ((r1, c1), (r2, c2)) = ixmap ((0, 0), (r2 - r1, c2 - c1)) (\(r, c) -> (r + r1, c + c1))
+
+-- | 汎用版: 要素を show してスペース区切りで表示
+printArray :: (IArray UArray a, Show a) => UArray (Int, Int) a -> IO ()
+printArray ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn $ unwords [show (ary ! (r, c)) | c <- [minC .. maxC]]
+
+-- | Char専用版: 文字をそのまま連結してグリッド表示
+printArrayChar :: UArray (Int, Int) Char -> IO ()
+printArrayChar ary = do
+  let ((minR, minC), (maxR, maxC)) = bounds ary
+  forM_ [minR .. maxR] $ \r -> do
+    putStrLn [ary ! (r, c) | c <- [minC .. maxC]]
+
+-- | 整数を10進数の桁リストを返す。負の数は絶対値の桁リストを返す
+-- >>> toDigits 1234
+-- [1,2,3,4]
+-- >>> toDigits 0
+-- [0]
+-- >>> toDigits (-123)
+-- [1,2,3]
+{-# INLINE toDigits #-}
+toDigits :: (Integral a) => a -> [a]
+toDigits 0 = [0]
+toDigits n = reverse $ go (abs n)
+  where
+    go 0 = []
+    go x = let (q, r) = x `quotRem` 10 in r : go q
+
+-- | 桁リストを整数に復元する
+-- >>> fromDigits [1,2,3,4]
+-- 1234
+{-# INLINE fromDigits #-}
+fromDigits :: (Integral a) => [a] -> a
+fromDigits = foldl' (\acc d -> acc * 10 + d) 0
+
+{- STUArray -}
+asSTU :: ST s (STUArray s i e) -> ST s (STUArray s i e)
+asSTU = id
+
+newSTUArray :: (MArray (STUArray s) e (ST s), Ix i) => (i, i) -> e -> ST s (STUArray s i e)
+newSTUArray b v = asSTU $ newArray b v
+
+-- | 部分文字列の取得 0-indexed で開始位置を指定、指定した長さの部分文字列を返す
+-- >>> substring 0 5 "Hello, World"
+-- "Hello"
+{-# INLINE substring #-}
+substring :: Int -> Int -> String -> String
+substring start len = take len . drop start
+
+-- | s に含まれる長さ k の部分文字列をすべて返す　　０（NK)
+-- >>> substringsK 3 "TOYOTA"
+-- ["TOY","OYO","YOT","OTA"]
+{-# INLINE substringsK #-}
+substringsK :: Int -> String -> [String]
+substringsK k s = map (take k) $ take (length s - k + 1) $ tails s
+
+{-# INLINE minimumDef #-}
+minimumDef :: (Foldable t, Ord p) => p -> t p -> p
+minimumDef def' xs
+  | null xs = def'
+  | otherwise = minimum xs
+
+{-# INLINE maximumDef #-}
+maximumDef :: (Foldable t, Ord p) => p -> t p -> p
+maximumDef def' xs
+  | null xs = def'
+  | otherwise = maximum xs
+
+{-# INLINE sort' #-}
+sort' :: (VUM.Unbox a, Ord a) => [a] -> [a]
+sort' xs = VU.toList $ VU.modify (VAI.sortBy compare) (VU.fromList xs)
+
+{-# INLINE sortBy' #-}
+sortBy' :: (VUM.Unbox a) => (a -> a -> Ordering) -> [a] -> [a]
+sortBy' f xs = VU.toList $ VU.modify (VAI.sortBy f) (VU.fromList xs)
+
+{-# INLINE sortOn' #-}
+sortOn' :: (VUM.Unbox a2, VUM.Unbox a1, Ord a2) => (a1 -> a2) -> [a1] -> [a1]
+sortOn' f =
+  VU.toList . VU.map snd . VU.modify (VAI.sortBy (comparing fst)) .
+  VU.map (\x -> let y = f x in y `seq` (y, x)) . VU.fromList
+
+{-# INLINE count #-}
+count :: Eq a => a -> [a] -> Int
+count a as = length $ filter (== a) as
+
+{-# INLINE countIf #-}
+countIf :: (a -> Bool) -> [a] -> Int
+countIf f as = length $ filter f as
+
+{-- bisect --}
+bisect :: (Integral a) => a -> a -> (a -> Bool) -> (a, a)
+bisect ng' ok' f = worker ng' ok'
+  where
+    worker ng ok
+      | abs (ok - ng) <= 1 = (ng, ok)
+      | f m = worker ng m
+      | otherwise = worker m ok
+      where
+        m = (ng + ok) `div` 2
+{-# INLINE bisect #-}
+
+{- 組み合わせの数 -}
+-- k個のなかから2個選ぶ組み合わせの数
+{-# INLINE comb2 #-}
+comb2 :: Int -> Int
+comb2 k = k * (k-1) `div` 2
+
+-- k個のなかから3個選ぶ組み合わせの数
+{-# INLINE comb3 #-}
+comb3 :: Int -> Int
+comb3 k = k * (k-1) * (k-2) `div` 6
+
+{- ORMOLU_DISABLE -}
+#if FALSE
+
+{-# INLINE eratosthenes #-}
+eratosthenes :: Int -> UArray Int Bool
+eratosthenes n = runSTUArray $ do
+  ps <- newArray (0, n) True
+  writeArray ps 0 False
+  writeArray ps 1 False
+  forM_ [4, 6 .. n] $ \i -> writeArray ps i False
+
+  let limit = floor (sqrt (fromIntegral n :: Double))
+  forM_ [3, 5 .. limit] $ \p -> do
+    isPrime <- readArray ps p
+    when isPrime $
+      forM_ [p * p, p * (p + 2) .. n] $
+        \i -> writeArray ps i False
+
+  return ps
+
+-- | n以下の素数リストを返す
+{-# INLINE primes #-}
+primes :: Int -> [Int]
+primes n
+  | n < 2 = []
+  | n == 2 = [2]
+  | otherwise = 2 : [p | (p, True) <- assocs $ eratosthenes n, odd p]
+
+
+{- ModInt -}
+modBase :: Int
+-- modBase = 998_244_353
+modBase = 1_000_000_007
+
+-- nCr 用の最大サイズ (2*10^5 が一般的)
+maxN :: Int
+maxN = 2_00_000
+
+newtype ModInt = ModInt {getVal :: Int} deriving (Eq)
+
+instance Show ModInt where
+  show (ModInt a) = show a
+
+instance Num ModInt where
+  (ModInt a) + (ModInt b) = ModInt $ (a + b) `rem` modBase
+  (ModInt a) - (ModInt b) = ModInt $ (a - b + modBase) `rem` modBase
+  (ModInt a) * (ModInt b) = ModInt $ (a * b) `rem` modBase
+  fromInteger n = ModInt $ fromInteger (n `mod` fromIntegral modBase)
+  abs = id
+  signum _ = ModInt 1
+
+-- 割り算 (フェルマーの小定理により逆元を掛ける)
+instance Fractional ModInt where
+  recip (ModInt a) = ModInt $ powMod a (modBase - 2)
+  fromRational = error "No float conversion for ModInt"
+
+-- 累乗計算 (繰り返し二乗法) O(log n)
+{-# INLINE powMod #-}
+powMod :: Int -> Int -> Int
+powMod _ 0 = 1
+powMod a n
+  | even n = p2
+  | otherwise = (a * p2) `rem` modBase
+  where
+    p = powMod a (n `div` 2)
+    p2 = (p * p) `rem` modBase
+
+-- 累乗の演算子定義 (例: val ^% 10)
+infixr 8 ^%
+
+(^%) :: ModInt -> Int -> ModInt
+(ModInt a) ^% n = ModInt $ powMod a n
+{-# INLINE (^%) #-}
+
+-- =========================================================================
+--  Combinations (nCr) Library with Precomputation
+-- =========================================================================
+
+-- 階乗テーブル O(N)
+{-# INLINE factTable #-}
+factTable :: VU.Vector Int
+factTable = VU.scanl' (\acc x -> (acc * x) `rem` modBase) 1 (VU.fromList [1 .. maxN])
+
+-- 階乗の逆元テーブル O(N)
+-- 末尾の逆元を求めてから後ろ向きに累積積を取ることで高速化
+{-# INLINE invFactTable #-}
+invFactTable :: VU.Vector Int
+invFactTable = VU.scanr' (\x acc -> (acc * x) `rem` modBase) finalInv (VU.fromList [1 .. maxN])
+  where
+    finalInv = powMod (VU.last factTable) (modBase - 2)
+
+-- 組み合わせ計算 nCr O(1)
+{-# INLINE nCr #-}
+nCr :: Int -> Int -> ModInt
+nCr n r
+  | r < 0 || r > n = ModInt 0
+  | otherwise =
+      let n' = factTable VU.! n
+          r' = invFactTable VU.! r
+          nr' = invFactTable VU.! (n - r)
+       in ModInt $ n' * r' `rem` modBase * nr' `rem` modBase
+
+-- 順列計算 nPr O(1)
+{-# INLINE nPr #-}
+nPr :: Int -> Int -> ModInt
+nPr n r
+  | r < 0 || r > n = ModInt 0
+  | otherwise =
+      let n' = factTable VU.! n
+          nr' = invFactTable VU.! (n - r)
+       in ModInt $ n' * nr' `rem` modBase
+
+-- 重複組み合わせ nHr O(1)
+{-# INLINE nHr #-}
+nHr :: Int -> Int -> ModInt
+nHr n r
+  | n == 0 && r == 0 = ModInt 1
+  | otherwise = nCr (n + r - 1) r
+
+#endif
+{- ORMOLU_ENABLE -}
+
+{- End Bonsai -}

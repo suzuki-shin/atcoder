@@ -126,9 +126,24 @@ Just ('x',fromList [(2,'b')])
 ghci> M.minViewWithKey  $ M.fromList [(1,'a'),(2,'b')] -- キーが最小のキーと値のタプルとそれを除いたMapを返す
 Just ((1,'a'),fromList [(2,'b')])
 
--- Mapで出現数カウント
+-- ===== fromListWith: キーごとに集約する万能ツール =====
+-- 型: fromListWith :: (a -> a -> a) -> [(k, a)] -> Map k a
+-- 結合関数 f は f new old の順で渡される（同じキーが衝突したとき、新しい方が左）
+-- foldl' + insertWith を書くより簡潔。グループ集約で頻出。
+
+-- パターン1: 出現数カウント
 ghci> M.fromListWith (+) $ map (,1) "abracadabra"
 fromList [('a',5),('b',2),('c',1),('d',1),('r',2)]
+
+-- パターン2: キーごとに最大値
+ghci> IM.fromListWith max [(1,3),(2,5),(1,7),(2,2)]
+fromList [(1,7),(2,5)]
+
+-- パターン3: キーごとにリスト集約 (Group By)
+-- (++) は左側が常に長さ1なので O(1)/挿入で安全。
+-- 「左が伸びる foldl (++)」のような O(N²) パターンとは別物。
+ghci> IM.fromListWith (++) [(1,[3]),(2,[5]),(1,[7]),(2,[2])]
+fromList [(1,[7,3]),(2,[2,5])]
 ```
 
 ## Array

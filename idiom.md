@@ -512,3 +512,29 @@ loop is k
       is1 = IS.insert k is
       k1 = sum $ map (^2) $ toDigits k
 ```
+
+```haskell
+{- unfoldr :: (b -> Maybe (a, b)) -> b -> [a] -}
+-- foldr の逆。シード b から「出力要素 a と次の状態 b」を繰り返し生成してリストを作る。
+-- Nothing を返した時点で終了。
+-- 「初期値から繰り返し変換してリストを作る」場面の定番。
+-- mapAccumL は「既存リストを走査しつつ状態を持つ」、unfoldr は「シードから新しいリストを生成」。
+
+-- n から 1 までの降順リスト
+ghci> unfoldr (\x -> if x <= 0 then Nothing else Just (x, x-1)) 5
+[5,4,3,2,1]
+
+-- 整数を 2 進数の各桁(下位から)に分解
+ghci> unfoldr (\x -> if x == 0 then Nothing else Just (x `mod` 2, x `div` 2)) 13
+[1,0,1,1]
+
+-- ABC216 C: N から 0 まで ÷2/−1 で逆走させて操作列を作る
+-- (N が偶数なら ×2 を逆向きに、奇数なら +1 を逆向きに)
+solve :: Int -> String
+solve = reverse . unfoldr go
+  where
+    go 0 = Nothing
+    go x
+      | odd x     = Just ('A', x - 1)
+      | otherwise = Just ('B', x `div` 2)
+```

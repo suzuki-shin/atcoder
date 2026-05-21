@@ -115,6 +115,10 @@ N 個の文字列 S1​,…,SN​ が与えられます。i=1,…,N の順に、
     Si​ は英小文字のみからなる長さ 1 以上 10 以下の文字列
 
 -}
+{-
+@tags: [Map, mapAccumL, insertWith, findWithDefault]
+@note: 出現回数カウントを逐次更新する典型。M.insertWith (+) s 1 で「未登場→1, 既出→+1」を分岐なしで一本化。M.findWithDefault 0 を使うと Maybe 分岐も消える（格納値が常に正なので 0 をセンチネルにできる）。M.adjust は key が無いと何もしないので新規追加には使えない点に注意。リストの状態付き走査は mapAccumL がハマる。
+-}
 solve :: Solver
 solve (n,ss) =
   res

@@ -144,6 +144,31 @@ fromList [(1,7),(2,5)]
 -- 「左が伸びる foldl (++)」のような O(N²) パターンとは別物。
 ghci> IM.fromListWith (++) [(1,[3]),(2,[5]),(1,[7]),(2,[2])]
 fromList [(1,[7,3]),(2,[2,5])]
+
+-- ===== insertWith: 走査しながら逐次更新 =====
+-- 型: insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+-- 結合関数 f は f new old の順で渡される（fromListWith と同じ）
+-- key が無ければ new をそのまま挿入。あれば f new old を挿入。
+-- 「未登場なら初期値、既出なら関数適用」が分岐なしで書ける。
+
+-- パターン: 出現数を逐次カウント（mapAccumL と組み合わせ）
+-- 例: ABC261 C — S_i 以前に同じ文字列が X 個あれば "S_i(X)" を出力
+f :: M.Map String Int -> String -> (M.Map String Int, String)
+f cntMap s =
+  let cnt     = M.findWithDefault 0 s cntMap            -- 未登場は 0
+      cntMap' = M.insertWith (+) s 1 cntMap             -- 「未登場→1, 既出→+1」を一本化
+      out     = if cnt == 0 then s else s ++ "(" ++ show cnt ++ ")"
+  in (cntMap', out)
+
+-- M.!? で Maybe を受けて case 分岐するより、findWithDefault でセンチネル値
+-- (この例では 0) を使うと分岐が消える。格納値が常に >0 のときに有効。
+
+-- ===== findWithDefault: lookup の Maybe を消す =====
+-- 型: findWithDefault :: Ord k => a -> k -> Map k a -> a
+ghci> M.findWithDefault 0 'z' (M.fromList [('a',3),('b',5)])
+0
+ghci> M.findWithDefault 0 'a' (M.fromList [('a',3),('b',5)])
+3
 ```
 
 ## Array
